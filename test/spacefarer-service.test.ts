@@ -130,6 +130,27 @@ describe('SpacefarerService', () => {
       const stillThere = await GET(`/Spacefarers(${PLANET_Y_SPACEFARER})`, as('alice'))
       assert.equal(stillThere.status, 200)
     })
+
+    it('cannot create a spacefarer on Planet Y', async () => {
+      const response = await POST('/Spacefarers', recruit('Y'), as('xavier'))
+      assert.equal(response.status, 403)
+
+      const all = await GET('/Spacefarers/$count', as('alice'))
+      assert.equal(all.data, 12)
+    })
+
+    it('cannot create a spacefarer on Planet Y using a nested planet reference', async () => {
+      const response = await POST('/Spacefarers', recruit('X', { originPlanet_code: undefined, originPlanet: { code: 'Y' } }), as('xavier'))
+      assert.equal(response.status, 403)
+    })
+
+    it('cannot move a spacefarer to Planet Y', async () => {
+      const response = await PATCH(`/Spacefarers(${PLANET_X_SPACEFARER})`, { originPlanet_code: 'Y' }, as('xavier'))
+      assert.equal(response.status, 403)
+
+      const unchanged = await GET(`/Spacefarers(${PLANET_X_SPACEFARER})`, as('alice'))
+      assert.equal(unchanged.data.originPlanet_code, 'X')
+    })
   })
 
   describe('galactic admin', () => {
