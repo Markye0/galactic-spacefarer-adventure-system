@@ -31,6 +31,9 @@
     "watch-spacefarers": "cds watch --open sap.galaxy.spacefarers/index.html?sap-ui-xx-viewCache=false --livereload false"
   },
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "imports": {
     "#cds-models/*": "./@cds-models/*/index.js"
   },
