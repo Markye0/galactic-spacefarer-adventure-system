@@ -1,6 +1,8 @@
-import { describe, it, beforeEach } from 'node:test'
+import { describe, it, beforeEach, mock } from 'node:test'
 import assert from 'node:assert/strict'
+import { setTimeout as sleep } from 'node:timers/promises'
 import cds from '@sap/cds'
+import { mailer, type Mail } from '../srv/lib/mailer.js'
 
 const test = cds.test(import.meta.dirname + '/..')
 const { GET, POST, PATCH, axios } = test
@@ -27,7 +29,16 @@ interface ODataError {
 const errorsOf = (response: { data: { error: ODataError } }) => response.data.error.details ?? [response.data.error]
 
 describe('spacefarer event handlers', () => {
-  beforeEach(() => test.data.reset())
+  const send = mock.method(mailer, 'send', async () => {})
+  const sentMails = () => send.mock.calls.map(call => call.arguments[0] as Mail)
+  // The email goes out after the response, once the transaction has committed
+  const afterCommit = () => sleep(50)
+
+  beforeEach(async () => {
+    await test.data.reset()
+    send.mock.resetCalls()
+    send.mock.mockImplementation(async () => {})
+  })
 
   describe('before CREATE: validation', () => {
     it('rejects negative stardust', async () => {
@@ -115,6 +126,58 @@ describe('spacefarer event handlers', () => {
       const response = await PATCH(`/Spacefarers(${EXISTING_SPACEFARER})`, { spacesuitColor_code: 'AURORA_GREEN' }, as('alice'))
       assert.equal(response.status, 200)
       assert.equal(response.data.stardustCollection, 560)
+    })
+  })
+
+  describe('after CREATE: welcome email', () => {
+    it('sends one email to the new spacefarer', async () => {
+      await POST('/Spacefarers', candidate({ stardustCollection: 250, wormholeNavigationSkill: 4 }), as('alice'))
+      await afterCommit()
+
+      const mails = sentMails()
+      assert.equal(mails.length, 1)
+      assert.equal(mails[0].to, 'ada.starling@spacefarers.example')
+      assert.equal(mails[0].subject, 'Welcome aboard, Ada Starling – your cosmic journey begins!')
+    })
+
+    it('mentions the enhanced values', async () => {
+      await POST('/Spacefarers', candidate({ stardustCollection: 1000, wormholeNavigationSkill: 4 }), as('alice'))
+      await afterCommit()
+
+      const [mail] = sentMails()
+      assert.match(mail.text, /Stardust collection: 1100 units/)
+      assert.match(mail.text, /level 5 of 10/)
+    })
+
+    it('sends nothing when the candidate is invalid', async () => {
+      await POST('/Spacefarers', candidate({ stardustCollection: -1 }), as('alice'))
+      await afterCommit()
+      assert.equal(sentMails().length, 0)
+    })
+
+    it('sends nothing when the candidate is rejected for another planet', async () => {
+      await POST('/Spacefarers', candidate({ originPlanet_code: 'Y' }), as('xavier'))
+      await afterCommit()
+      assert.equal(sentMails().length, 0)
+    })
+
+    it('sends nothing when a spacefarer is updated', async () => {
+      await PATCH(`/Spacefarers(${EXISTING_SPACEFARER})`, { stardustCollection: 2000 }, as('alice'))
+      await afterCommit()
+      assert.equal(sentMails().length, 0)
+    })
+
+    it('keeps the spacefarer when the email cannot be sent', async () => {
+      send.mock.mockImplementation(async () => {
+        throw new Error('SMTP server unreachable')
+      })
+
+      const response = await POST('/Spacefarers', candidate(), as('alice'))
+      await afterCommit()
+
+      assert.equal(response.status, 201)
+      const stored = await GET(`/Spacefarers(${response.data.ID})`, as('alice'))
+      assert.equal(stored.status, 200)
     })
   })
 })
