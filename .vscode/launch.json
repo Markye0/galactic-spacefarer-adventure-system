@@ -2,12 +2,13 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "cds serve",
+      "name": "cds-tsx serve",
       "request": "launch",
       "type": "node",
       "cwd": "${workspaceFolder}",
-      "runtimeExecutable": "cds",
+      "runtimeExecutable": "npx",
       "args": [
+        "cds-tsx",
         "serve",
         "--with-mocks",
         "--in-memory?"
