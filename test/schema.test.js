@@ -79,3 +79,58 @@ describe('data model', () => {
     }
   })
 })
+
+describe('initial data', () => {
+  const { SELECT } = cds.ql
+  let db, spacefarers
+
+  const read = entity => db.run(SELECT.from(`${NS}.${entity}`))
+
+  before(async () => {
+    db = await cds.deploy('db').to('sqlite::memory:')
+    spacefarers = await read('Spacefarers')
+  })
+
+  it('seeds every entity', async () => {
+    const expected = { Planets: 2, SpacesuitColors: 5, Departments: 4, Positions: 4, Spacefarers: 12 }
+    for (const [entity, count] of Object.entries(expected)) {
+      assert.equal((await read(entity)).length, count, `unexpected number of ${entity}`)
+    }
+  })
+
+  it('places six spacefarers on each planet', () => {
+    for (const planet of ['X', 'Y']) {
+      assert.equal(spacefarers.filter(s => s.originPlanet_code === planet).length, 6)
+    }
+  })
+
+  it('references only existing master data', async () => {
+    const references = {
+      originPlanet_code: ['Planets', 'code'],
+      spacesuitColor_code: ['SpacesuitColors', 'code'],
+      department_ID: ['Departments', 'ID'],
+      position_ID: ['Positions', 'ID'],
+    }
+    for (const [foreignKey, [entity, key]] of Object.entries(references)) {
+      const known = new Set((await read(entity)).map(row => row[key]))
+      for (const spacefarer of spacefarers) {
+        assert.ok(known.has(spacefarer[foreignKey]), `${spacefarer.name}: unknown ${foreignKey} '${spacefarer[foreignKey]}'`)
+      }
+    }
+  })
+
+  it('gives every spacefarer a name and a unique email', () => {
+    for (const spacefarer of spacefarers) {
+      assert.ok(spacefarer.name)
+      assert.match(spacefarer.email, /^[^@\s]+@[^@\s]+$/)
+    }
+    assert.equal(new Set(spacefarers.map(s => s.email)).size, spacefarers.length)
+  })
+
+  it('keeps stardust non-negative and wormhole skill between 1 and 10', () => {
+    for (const { name, stardustCollection, wormholeNavigationSkill } of spacefarers) {
+      assert.ok(stardustCollection >= 0, `${name}: stardust ${stardustCollection}`)
+      assert.ok(wormholeNavigationSkill >= 1 && wormholeNavigationSkill <= 10, `${name}: skill ${wormholeNavigationSkill}`)
+    }
+  })
+})
