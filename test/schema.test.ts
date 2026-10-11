@@ -4,12 +4,42 @@ import cds from '@sap/cds'
 
 const NS = 'sap.galaxy.spacefarers'
 
+// cds.deploy is not covered by @cap-js/cds-types yet
+type Deploy = (model: string) => { to(url: string): Promise<cds.DatabaseService> }
+const { deploy } = cds as unknown as { deploy: Deploy }
+
+// The parts of the reflected model these tests look at
+interface Element {
+  type: string
+  length?: number
+  default?: { val: unknown }
+  target?: string
+  is2many?: boolean
+  '@mandatory'?: boolean
+}
+interface Entity {
+  elements: Record<string, Element>
+  keys: Record<string, Element>
+}
+
+type Row = Record<string, unknown>
+interface SpacefarerRow {
+  name: string
+  email: string
+  stardustCollection: number
+  wormholeNavigationSkill: number
+  originPlanet_code: string
+  spacesuitColor_code: string
+  department_ID: string
+  position_ID: string
+}
+
 describe('data model', () => {
-  let entities
+  let entities: Record<string, Entity>
 
   before(async () => {
     const model = cds.linked(await cds.load('db'))
-    entities = model.entities(NS)
+    entities = model.entities(NS) as unknown as Record<string, Entity>
   })
 
   it('defines the five entities', () => {
@@ -30,8 +60,8 @@ describe('data model', () => {
 
   it('defaults stardust collection to 0 and wormhole navigation skill to 1', () => {
     const { elements } = entities.Spacefarers
-    assert.equal(elements.stardustCollection.default.val, 0)
-    assert.equal(elements.wormholeNavigationSkill.default.val, 1)
+    assert.equal(elements.stardustCollection.default?.val, 0)
+    assert.equal(elements.wormholeNavigationSkill.default?.val, 1)
   })
 
   it('makes name, email and origin planet mandatory', () => {
@@ -82,13 +112,14 @@ describe('data model', () => {
 
 describe('initial data', () => {
   const { SELECT } = cds.ql
-  let db, spacefarers
+  let db: cds.DatabaseService
+  let spacefarers: SpacefarerRow[]
 
-  const read = entity => db.run(SELECT.from(`${NS}.${entity}`))
+  const read = (entity: string): Promise<Row[]> => db.run(SELECT.from(`${NS}.${entity}`))
 
   before(async () => {
-    db = await cds.deploy('db').to('sqlite::memory:')
-    spacefarers = await read('Spacefarers')
+    db = await deploy('db').to('sqlite::memory:')
+    spacefarers = (await read('Spacefarers')) as unknown as SpacefarerRow[]
   })
 
   it('seeds every entity', async () => {
@@ -105,13 +136,13 @@ describe('initial data', () => {
   })
 
   it('references only existing master data', async () => {
-    const references = {
+    const references: Partial<Record<keyof SpacefarerRow, [string, string]>> = {
       originPlanet_code: ['Planets', 'code'],
       spacesuitColor_code: ['SpacesuitColors', 'code'],
       department_ID: ['Departments', 'ID'],
       position_ID: ['Positions', 'ID'],
     }
-    for (const [foreignKey, [entity, key]] of Object.entries(references)) {
+    for (const [foreignKey, [entity, key]] of Object.entries(references) as [keyof SpacefarerRow, [string, string]][]) {
       const known = new Set((await read(entity)).map(row => row[key]))
       for (const spacefarer of spacefarers) {
         assert.ok(known.has(spacefarer[foreignKey]), `${spacefarer.name}: unknown ${foreignKey} '${spacefarer[foreignKey]}'`)
