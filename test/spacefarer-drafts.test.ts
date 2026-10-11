@@ -24,6 +24,10 @@ const candidate = (overrides: Record<string, unknown> = {}) => ({
 const activeSpacefarer = (id: string) => GET(`/Spacefarers(ID=${id},IsActiveEntity=true)`, as('alice'))
 const activeCount = async () => (await GET('/Spacefarers/$count?$filter=IsActiveEntity eq true', as('alice'))).data
 
+// Messages for the user travel in the sap-messages response header
+const messagesOf = (response: { headers: Record<string, string> }): string[] =>
+  JSON.parse(response.headers['sap-messages'] ?? '[]').map((message: { message: string }) => message.message)
+
 describe('spacefarer drafts', () => {
   const send = mock.method(mailer, 'send', async () => {})
   const afterCommit = () => sleep(50)
@@ -53,6 +57,18 @@ describe('spacefarer drafts', () => {
       assert.equal(saved.data.IsActiveEntity, true)
       assert.equal(saved.data.stardustCollection, 350)
       assert.equal(send.mock.callCount(), 1)
+    })
+
+    it('tells the user about the starter pack', async () => {
+      const saved = await create(candidate({ stardustCollection: 250 }), 'xavier')
+      assert.deepEqual(messagesOf(saved), ['A 100-unit stardust starter pack was added to the collection.'])
+    })
+
+    it('tells the user about the skill bonus as well', async () => {
+      const saved = await create(candidate({ stardustCollection: 1000, wormholeNavigationSkill: 4 }), 'xavier')
+      assert.deepEqual(messagesOf(saved), [
+        'A 100-unit stardust starter pack was added to the collection, and the wormhole navigation skill was raised by one level.',
+      ])
     })
 
     it('does not save an invalid draft', async () => {
@@ -119,6 +135,11 @@ describe('spacefarer drafts', () => {
       assert.equal(discarded.status, 204)
       const { data } = await activeSpacefarer(PLANET_X_SPACEFARER)
       assert.equal(data.stardustCollection, 560)
+    })
+
+    it('grants no bonus and shows no bonus message', async () => {
+      const saved = await update(PLANET_X_SPACEFARER, { stardustCollection: 1200 }, 'xavier')
+      assert.deepEqual(messagesOf(saved), [])
     })
 
     it('does not save invalid changes', async () => {

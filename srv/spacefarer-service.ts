@@ -1,6 +1,6 @@
 import cds from '@sap/cds'
 import { CurrentUser, Spacefarer, Spacefarers } from '#cds-models/SpacefarerService'
-import { applyDefaults, enhanceCandidate, validateCandidate } from './lib/candidate.js'
+import { applyDefaults, describeBonuses, enhanceCandidate, validateCandidate } from './lib/candidate.js'
 import { mailer } from './lib/mailer.js'
 import { buildWelcomeEmail, type NewSpacefarer } from './lib/welcome-email.js'
 
@@ -46,10 +46,16 @@ export default class SpacefarerService extends cds.ApplicationService {
     }
   }
 
-  /** Validates a new candidate and, if valid, enhances their stardust collection and skill. */
+  /**
+   * Validates a new candidate and, if valid, enhances their stardust collection and skill.
+   * The saved values differ from the entered ones, so the user is told what was added.
+   */
   private prepareCandidate(req: cds.Request<Spacefarer>) {
     applyDefaults(req.data)
-    if (this.validate(req)) enhanceCandidate(req.data)
+    if (!this.validate(req)) return
+
+    const bonuses = enhanceCandidate(req.data)
+    req.info(describeBonuses(bonuses))
   }
 
   /** Records one error per invalid field, so the client receives all of them at once. */

@@ -45,15 +45,27 @@ export function applyDefaults(candidate: CandidateData): void {
   candidate.wormholeNavigationSkill ??= MIN_SKILL
 }
 
+export interface Bonuses {
+  starterStardust: number
+  skillRaised: boolean
+}
+
 /**
  * Prepares a valid new candidate for the journey: experienced collectors get a skill bonus,
  * and everyone receives the stardust starter pack. The skill bonus depends on the stardust
  * the candidate arrives with, so it is decided before the starter pack is added.
  */
-export function enhanceCandidate(candidate: CandidateData): void {
+export function enhanceCandidate(candidate: CandidateData): Bonuses {
   const stardust = candidate.stardustCollection ?? 0
   const skill = candidate.wormholeNavigationSkill ?? MIN_SKILL
+  const raisedSkill = stardust >= TALENT_THRESHOLD ? Math.min(skill + 1, MAX_SKILL) : skill
 
-  candidate.wormholeNavigationSkill = stardust >= TALENT_THRESHOLD ? Math.min(skill + 1, MAX_SKILL) : skill
+  candidate.wormholeNavigationSkill = raisedSkill
   candidate.stardustCollection = stardust + STARTER_STARDUST
+  return { starterStardust: STARTER_STARDUST, skillRaised: raisedSkill > skill }
+}
+
+export function describeBonuses({ starterStardust, skillRaised }: Bonuses): string {
+  const starterPack = `A ${starterStardust}-unit stardust starter pack was added to the collection`
+  return skillRaised ? `${starterPack}, and the wormhole navigation skill was raised by one level.` : `${starterPack}.`
 }
