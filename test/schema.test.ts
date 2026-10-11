@@ -123,15 +123,15 @@ describe('initial data', () => {
   })
 
   it('seeds every entity', async () => {
-    const expected = { Planets: 2, SpacesuitColors: 5, Departments: 4, Positions: 4, Spacefarers: 12 }
+    const expected = { Planets: 2, SpacesuitColors: 5, Departments: 4, Positions: 4, Spacefarers: 80 }
     for (const [entity, count] of Object.entries(expected)) {
       assert.equal((await read(entity)).length, count, `unexpected number of ${entity}`)
     }
   })
 
-  it('places six spacefarers on each planet', () => {
+  it('places forty spacefarers on each planet', () => {
     for (const planet of ['X', 'Y']) {
-      assert.equal(spacefarers.filter(s => s.originPlanet_code === planet).length, 6)
+      assert.equal(spacefarers.filter(s => s.originPlanet_code === planet).length, 40)
     }
   })
 

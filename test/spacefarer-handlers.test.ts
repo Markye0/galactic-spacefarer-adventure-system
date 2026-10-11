@@ -71,7 +71,7 @@ describe('spacefarer event handlers', () => {
     it('does not store an invalid candidate', async () => {
       await POST('/Spacefarers', candidate({ stardustCollection: -1 }), as('alice'))
       const count = await GET('/Spacefarers/$count', as('alice'))
-      assert.equal(count.data, 12)
+      assert.equal(count.data, 80)
     })
   })
 

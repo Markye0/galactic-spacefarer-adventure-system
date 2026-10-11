@@ -93,4 +93,28 @@ describe('spacefarer list', () => {
       assert.deepEqual(await list('$search=kepler', 'yuri'), [])
     })
   })
+
+  describe('paging', () => {
+    it('has more spacefarers per planet than one page of 30', async () => {
+      const response = await GET('/Spacefarers/$count', as('xena'))
+      assert.equal(response.data, 40)
+    })
+
+    it('returns consecutive pages without overlap', async () => {
+      const page = (skip: number) => list(`$orderby=name&$top=30&$skip=${skip}`, 'xena')
+      const [first, second] = [await page(0), await page(30)]
+
+      assert.equal(first.length, 30)
+      assert.equal(second.length, 10)
+      const names = [...first, ...second].map(s => s.name)
+      assert.equal(new Set(names).size, 40)
+      assert.deepEqual(names, [...names].sort())
+    })
+
+    it('reports the total count along with a page', async () => {
+      const response = await GET('/Spacefarers?$top=30&$count=true', as('alice'))
+      assert.equal(response.data['@odata.count'], 80)
+      assert.equal(response.data.value.length, 30)
+    })
+  })
 })

@@ -54,13 +54,13 @@ describe('SpacefarerService', () => {
     it('sees only the spacefarers of Planet X', async () => {
       const response = await GET('/Spacefarers', as('xena'))
       assert.equal(response.status, 200)
-      assert.equal(response.data.value.length, 6)
+      assert.equal(response.data.value.length, 40)
       assert.deepEqual(planetsOf(response), ['X'])
     })
 
     it('counts only the spacefarers of Planet X', async () => {
       const response = await GET('/Spacefarers/$count', as('xena'))
-      assert.equal(response.data, 6)
+      assert.equal(response.data, 40)
     })
 
     it('cannot read a spacefarer of Planet Y', async () => {
@@ -87,7 +87,7 @@ describe('SpacefarerService', () => {
   describe('viewer of Planet Y', () => {
     it('sees only the spacefarers of Planet Y', async () => {
       const response = await GET('/Spacefarers', as('yuri'))
-      assert.equal(response.data.value.length, 6)
+      assert.equal(response.data.value.length, 40)
       assert.deepEqual(planetsOf(response), ['Y'])
     })
   })
@@ -136,7 +136,7 @@ describe('SpacefarerService', () => {
       assert.equal(response.status, 403)
 
       const all = await GET('/Spacefarers/$count', as('alice'))
-      assert.equal(all.data, 12)
+      assert.equal(all.data, 80)
     })
 
     it('cannot create a spacefarer on Planet Y using a nested planet reference', async () => {
@@ -156,7 +156,7 @@ describe('SpacefarerService', () => {
   describe('galactic admin', () => {
     it('sees the spacefarers of every planet', async () => {
       const response = await GET('/Spacefarers', as('alice'))
-      assert.equal(response.data.value.length, 12)
+      assert.equal(response.data.value.length, 80)
       assert.deepEqual(planetsOf(response).sort(), ['X', 'Y'])
     })
 
