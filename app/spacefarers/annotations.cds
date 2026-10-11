@@ -122,3 +122,12 @@ annotate service.Spacefarers with @(
 annotate service.Spacefarers with {
   originPlanet @Common.FieldControl: { $edmJson: { $If: [ { $Path: '/CurrentUser/canChoosePlanet' }, 7, 1 ] } };
 };
+
+// The stardust status is derived from the stardust collection, so the UI reads it again
+// whenever the collection is changed in a draft.
+annotate service.Spacefarers with @(
+  Common.SideEffects #StardustCollectionChanged: {
+    SourceProperties: [ stardustCollection ],
+    TargetProperties: [ 'stardustStatus', 'stardustStatusCriticality' ],
+  }
+);
