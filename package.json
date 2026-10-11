@@ -16,7 +16,8 @@
     "eslint": "^10.12.0",
     "tsx": "^4",
     "typescript": "~6.0",
-    "typescript-eslint": "^8.71.1"
+    "typescript-eslint": "^8.71.1",
+    "cds-plugin-ui5": "^0.17.0"
   },
   "scripts": {
     "start": "cds-serve",
@@ -25,7 +26,8 @@
     "pretest": "npm run types",
     "test": "node --import tsx --import ./test/setup.ts --test \"test/**/*.test.ts\"",
     "lint": "eslint .",
-    "typecheck": "npm run types && tsc"
+    "typecheck": "npm run types && tsc",
+    "watch-spacefarers": "cds watch --open sap.galaxy.spacefarers/index.html?sap-ui-xx-viewCache=false --livereload false"
   },
   "private": true,
   "imports": {
@@ -88,5 +90,11 @@
         }
       }
     }
-  }
+  },
+  "workspaces": [
+    "app/*"
+  ],
+  "sapux": [
+    "app/spacefarers"
+  ]
 }
