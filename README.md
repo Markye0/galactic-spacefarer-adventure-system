@@ -95,8 +95,9 @@ of other planets cannot be reached through departments or positions.
 - **Before create** – validates the stardust collection (0 to
   1,000,000,000), the wormhole navigation skill (1 to 10) and the email
   address, and reports all errors at once. A valid candidate is then
-  enhanced: everyone gets a 100-unit stardust starter pack, and candidates
-  arriving with 1000 units or more get one extra skill level.
+  enhanced: everyone gets a 100-unit stardust starter pack, as far as the
+  maximum allows, and candidates arriving with 1000 units or more get one
+  extra skill level.
 - **Before update** – the same validation, without the bonuses.
 - **After create** – sends the welcome email, see
   [Email notifications](#email-notifications).

@@ -7,6 +7,8 @@ import { buildWelcomeEmail, type NewSpacefarer } from './lib/welcome-email.js'
 
 const LOG = cds.log('spacefarers')
 
+type StoredSpacefarer = Omit<NewSpacefarer, 'starterStardust'>
+
 /**
  * The planets a user is bound to. Mocked users carry a single value; XSUAA and IAS deliver
  * attributes as lists, also when there is only one value.
@@ -122,7 +124,7 @@ export default class SpacefarerService extends cds.ApplicationService {
     if (granted) req.info(granted)
 
     // req.data holds the candidate as stored, including the enhanced values
-    this.sendWelcomeEmail(req, req.data as NewSpacefarer)
+    this.sendWelcomeEmail(req, { ...(req.data as StoredSpacefarer), starterStardust: bonuses.starterStardust })
   }
 
   /**
