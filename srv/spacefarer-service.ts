@@ -84,17 +84,16 @@ export default class SpacefarerService extends cds.ApplicationService {
 
   /**
    * Sends the email only after the transaction has committed, so nobody is congratulated on a
-   * creation that was rolled back. A failed email is logged and does not affect the spacefarer.
+   * creation that was rolled back. Sending runs in the background: the user does not wait for
+   * the mail server, and a failed email is logged without affecting the spacefarer.
    */
   private sendWelcomeEmail(req: cds.Request<Spacefarer>) {
     // req.data holds the candidate as stored, including the enhanced values
     const spacefarer = req.data as NewSpacefarer
-    req.on('succeeded', async () => {
-      try {
-        await mailer.send(buildWelcomeEmail(spacefarer))
-      } catch (error) {
+    req.on('succeeded', () => {
+      mailer.send(buildWelcomeEmail(spacefarer)).catch(error => {
         LOG.error(`Welcome email to ${spacefarer.email} could not be sent:`, error)
-      }
+      })
     })
   }
 }

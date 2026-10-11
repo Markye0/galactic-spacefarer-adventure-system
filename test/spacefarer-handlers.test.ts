@@ -32,7 +32,7 @@ const errorsOf = (response: { data: { error: ODataError } }) => response.data.er
 describe('spacefarer event handlers', () => {
   const send = mock.method(mailer, 'send', async () => {})
   const sentMails = () => send.mock.calls.map(call => call.arguments[0] as Mail)
-  // The email goes out after the response, once the transaction has committed
+  // The email is sent in the background once the transaction has committed
   const afterCommit = () => sleep(50)
 
   beforeEach(async () => {
@@ -168,6 +168,17 @@ describe('spacefarer event handlers', () => {
       assert.equal(sentMails().length, 0)
     })
 
+    it('does not make the user wait for the email', async () => {
+      let delivered = () => {}
+      send.mock.mockImplementation(() => new Promise<void>(resolve => (delivered = resolve)))
+
+      const response = await create(candidate(), 'alice')
+
+      assert.equal(response.status, 201)
+      assert.equal(send.mock.callCount(), 1) // sending has started, but has not finished
+      delivered()
+    })
+
     it('keeps the spacefarer when the email cannot be sent', async () => {
       send.mock.mockImplementation(async () => {
         throw new Error('SMTP server unreachable')
@@ -177,6 +188,7 @@ describe('spacefarer event handlers', () => {
       await afterCommit()
 
       assert.equal(response.status, 201)
+      assert.equal(send.mock.callCount(), 1)
       const stored = await GET(`/Spacefarers(${response.data.ID})`, as('alice'))
       assert.equal(stored.status, 200)
     })
