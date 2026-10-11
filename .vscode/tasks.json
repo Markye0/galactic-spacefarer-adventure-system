@@ -4,7 +4,7 @@
     {
       "type": "shell",
       "label": "cds watch",
-      "command": "cds watch",
+      "command": "npm run watch",
     }
   ]
 }
