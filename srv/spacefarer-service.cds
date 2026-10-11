@@ -22,7 +22,18 @@ service SpacefarerService @(requires: 'authenticated-user') {
     end as stardustStatusCriticality : Integer
   };
 
-  annotate Spacefarers with @cds.search: { name, email };
+  annotate Spacefarers with @cds.search: { name, email } @odata.draft.enabled;
+
+  /**
+   * What the signed-in user may do. The UI binds the visibility of buttons and the editability
+   * of fields to it; the authorization itself is enforced by the restrictions above.
+   */
+  @odata.singleton @cds.persistence.skip @readonly
+  entity CurrentUser {
+    key id                   : String;
+        canManageSpacefarers : Boolean;
+        canChoosePlanet      : Boolean;
+  }
 
   // The backlinks to spacefarers are left out: $expand does not apply the planet restriction
   @readonly entity Departments     as projection on db.Departments excluding { spacefarers };

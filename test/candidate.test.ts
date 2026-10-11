@@ -90,6 +90,12 @@ describe('enhanceCandidate', () => {
     assert.deepEqual(enhance(950, 4), { stardustCollection: 1050, wormholeNavigationSkill: 4 })
   })
 
+  it('reports which bonuses were granted', () => {
+    assert.deepEqual(enhanceCandidate({ stardustCollection: 0, wormholeNavigationSkill: 1 }), { starterStardust: 100, skillRaised: false })
+    assert.deepEqual(enhanceCandidate({ stardustCollection: 1000, wormholeNavigationSkill: 4 }), { starterStardust: 100, skillRaised: true })
+    assert.deepEqual(enhanceCandidate({ stardustCollection: 1000, wormholeNavigationSkill: 10 }), { starterStardust: 100, skillRaised: false })
+  })
+
   it('never raises the skill above 10', () => {
     assert.deepEqual(enhance(5000, 10), { stardustCollection: 5100, wormholeNavigationSkill: 10 })
   })

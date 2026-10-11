@@ -1,15 +1,16 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 import cds from '@sap/cds'
+import { as, spacefarerDrafts } from './support.js'
 
 const test = cds.test(import.meta.dirname + '/..')
-const { GET, POST, PATCH, DELETE, axios } = test
+const { GET, POST, DELETE, axios } = test
 
 // Resolve on every status code, so tests can assert on rejections
 axios.defaults.validateStatus = () => true
 axios.defaults.path = '/odata/v4/spacefarer'
 
-const as = (username: string) => ({ auth: { username, password: 'pass' } })
+const { create, update } = spacefarerDrafts(test)
 
 const PLANET_X_SPACEFARER = 'a0000000-0000-4000-8000-000000000001' // Nova Kepler
 const PLANET_Y_SPACEFARER = 'a0000000-0000-4000-8000-000000000007' // Vela Andromeda
@@ -69,12 +70,12 @@ describe('SpacefarerService', () => {
     })
 
     it('cannot create a spacefarer', async () => {
-      const response = await POST('/Spacefarers', recruit('X'), as('xena'))
+      const response = await create(recruit('X'), 'xena')
       assert.equal(response.status, 403)
     })
 
     it('cannot update a spacefarer', async () => {
-      const response = await PATCH(`/Spacefarers(${PLANET_X_SPACEFARER})`, { spacesuitColor_code: 'COMET_WHITE' }, as('xena'))
+      const response = await update(PLANET_X_SPACEFARER, { spacesuitColor_code: 'COMET_WHITE' }, 'xena')
       assert.equal(response.status, 403)
     })
 
@@ -94,13 +95,13 @@ describe('SpacefarerService', () => {
 
   describe('manager of Planet X', () => {
     it('creates a spacefarer on Planet X', async () => {
-      const response = await POST('/Spacefarers', recruit('X'), as('xavier'))
+      const response = await create(recruit('X'), 'xavier')
       assert.equal(response.status, 201)
       assert.equal(response.data.originPlanet_code, 'X')
     })
 
     it('updates a spacefarer of Planet X', async () => {
-      const response = await PATCH(`/Spacefarers(${PLANET_X_SPACEFARER})`, { spacesuitColor_code: 'COMET_WHITE' }, as('xavier'))
+      const response = await update(PLANET_X_SPACEFARER, { spacesuitColor_code: 'COMET_WHITE' }, 'xavier')
       assert.equal(response.status, 200)
       assert.equal(response.data.spacesuitColor_code, 'COMET_WHITE')
     })
@@ -116,7 +117,7 @@ describe('SpacefarerService', () => {
     })
 
     it('cannot update a spacefarer of Planet Y', async () => {
-      const response = await PATCH(`/Spacefarers(${PLANET_Y_SPACEFARER})`, { spacesuitColor_code: 'COMET_WHITE' }, as('xavier'))
+      const response = await update(PLANET_Y_SPACEFARER, { spacesuitColor_code: 'COMET_WHITE' }, 'xavier')
       assert.ok([403, 404].includes(response.status), `unexpected status ${response.status}`)
 
       const unchanged = await GET(`/Spacefarers(${PLANET_Y_SPACEFARER})`, as('alice'))
@@ -132,7 +133,7 @@ describe('SpacefarerService', () => {
     })
 
     it('cannot create a spacefarer on Planet Y', async () => {
-      const response = await POST('/Spacefarers', recruit('Y'), as('xavier'))
+      const response = await create(recruit('Y'), 'xavier')
       assert.equal(response.status, 403)
 
       const all = await GET('/Spacefarers/$count', as('alice'))
@@ -140,12 +141,12 @@ describe('SpacefarerService', () => {
     })
 
     it('cannot create a spacefarer on Planet Y using a nested planet reference', async () => {
-      const response = await POST('/Spacefarers', recruit('X', { originPlanet_code: undefined, originPlanet: { code: 'Y' } }), as('xavier'))
+      const response = await create(recruit('X', { originPlanet_code: undefined, originPlanet: { code: 'Y' } }), 'xavier')
       assert.equal(response.status, 403)
     })
 
     it('cannot move a spacefarer to Planet Y', async () => {
-      const response = await PATCH(`/Spacefarers(${PLANET_X_SPACEFARER})`, { originPlanet_code: 'Y' }, as('xavier'))
+      const response = await update(PLANET_X_SPACEFARER, { originPlanet_code: 'Y' }, 'xavier')
       assert.equal(response.status, 403)
 
       const unchanged = await GET(`/Spacefarers(${PLANET_X_SPACEFARER})`, as('alice'))
@@ -161,12 +162,12 @@ describe('SpacefarerService', () => {
     })
 
     it('creates a spacefarer on any planet', async () => {
-      const response = await POST('/Spacefarers', recruit('Y'), as('alice'))
+      const response = await create(recruit('Y'), 'alice')
       assert.equal(response.status, 201)
     })
 
     it('moves a spacefarer to another planet', async () => {
-      const response = await PATCH(`/Spacefarers(${PLANET_X_SPACEFARER})`, { originPlanet_code: 'Y' }, as('alice'))
+      const response = await update(PLANET_X_SPACEFARER, { originPlanet_code: 'Y' }, 'alice')
       assert.equal(response.status, 200)
       assert.equal(response.data.originPlanet_code, 'Y')
     })
@@ -216,7 +217,7 @@ describe('SpacefarerService', () => {
   describe('mandatory fields', () => {
     for (const field of ['name', 'email', 'originPlanet_code']) {
       it(`rejects a spacefarer without ${field}`, async () => {
-        const response = await POST('/Spacefarers', recruit('X', { [field]: undefined }), as('alice'))
+        const response = await create(recruit('X', { [field]: undefined }), 'alice')
         assert.equal(response.status, 400)
       })
     }

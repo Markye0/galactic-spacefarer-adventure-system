@@ -1,6 +1,6 @@
 import cds from '@sap/cds'
-import { Spacefarer, Spacefarers } from '#cds-models/SpacefarerService'
-import { applyDefaults, enhanceCandidate, validateCandidate } from './lib/candidate.js'
+import { CurrentUser, Spacefarer, Spacefarers } from '#cds-models/SpacefarerService'
+import { applyDefaults, describeBonuses, enhanceCandidate, validateCandidate } from './lib/candidate.js'
 import { mailer } from './lib/mailer.js'
 import { buildWelcomeEmail, type NewSpacefarer } from './lib/welcome-email.js'
 
@@ -9,9 +9,11 @@ const LOG = cds.log('spacefarers')
 export default class SpacefarerService extends cds.ApplicationService {
   init() {
     this.before(['CREATE', 'UPDATE'], Spacefarers, req => this.rejectForeignPlanet(req))
+    this.before('NEW', Spacefarers.drafts, req => this.prefillOriginPlanet(req))
     this.before('CREATE', Spacefarers, req => this.prepareCandidate(req))
     this.before('UPDATE', Spacefarers, req => this.validate(req))
     this.after('CREATE', Spacefarers, (_, req) => this.sendWelcomeEmail(req))
+    this.on('READ', CurrentUser, req => this.describeCurrentUser(req))
     return super.init()
   }
 
@@ -29,10 +31,31 @@ export default class SpacefarerService extends cds.ApplicationService {
     }
   }
 
-  /** Validates a new candidate and, if valid, enhances their stardust collection and skill. */
+  /** A new spacefarer starts on the planet of the user creating it; a galactic admin has none. */
+  private prefillOriginPlanet(req: cds.Request<Spacefarer>) {
+    const { planet } = req.user.attr
+    if (planet) req.data.originPlanet_code ??= planet
+  }
+
+  private describeCurrentUser({ user }: cds.Request) {
+    const isAdmin = user.is('GalacticAdmin')
+    return {
+      id: user.id,
+      canManageSpacefarers: isAdmin || user.is('SpacefarerManager'),
+      canChoosePlanet: isAdmin,
+    }
+  }
+
+  /**
+   * Validates a new candidate and, if valid, enhances their stardust collection and skill.
+   * The saved values differ from the entered ones, so the user is told what was added.
+   */
   private prepareCandidate(req: cds.Request<Spacefarer>) {
     applyDefaults(req.data)
-    if (this.validate(req)) enhanceCandidate(req.data)
+    if (!this.validate(req)) return
+
+    const bonuses = enhanceCandidate(req.data)
+    req.info(describeBonuses(bonuses))
   }
 
   /** Records one error per invalid field, so the client receives all of them at once. */
