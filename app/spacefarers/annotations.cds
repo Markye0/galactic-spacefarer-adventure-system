@@ -53,3 +53,58 @@ annotate service.Spacefarers with @(
     { Value: position_ID },
   ],
 );
+
+// Object page
+annotate service.Spacefarers with @(
+  UI.HeaderFacets                         : [
+    { $Type: 'UI.ReferenceFacet', Target: '@UI.DataPoint#StardustStatus' },
+    { $Type: 'UI.ReferenceFacet', Target: '@UI.DataPoint#StardustCollection' },
+    { $Type: 'UI.ReferenceFacet', Target: '@UI.DataPoint#WormholeNavigationSkill' },
+  ],
+  UI.DataPoint #StardustStatus            : {
+    Title      : '{i18n>StardustStatus}',
+    Value      : stardustStatus,
+    Criticality: stardustStatusCriticality,
+  },
+  UI.DataPoint #StardustCollection        : {
+    Title: '{i18n>StardustCollection}',
+    Value: stardustCollection,
+  },
+  UI.DataPoint #WormholeNavigationSkill   : {
+    Title        : '{i18n>WormholeNavigationSkill}',
+    Value        : wormholeNavigationSkill,
+    TargetValue  : 10,
+    Visualization: #Progress,
+  },
+  UI.Facets                               : [
+    { $Type: 'UI.ReferenceFacet', ID: 'GeneralInformation', Label: '{i18n>GeneralInformation}', Target: '@UI.FieldGroup#GeneralInformation' },
+    { $Type: 'UI.ReferenceFacet', ID: 'CosmicDetails',      Label: '{i18n>CosmicDetails}',      Target: '@UI.FieldGroup#CosmicDetails' },
+    { $Type: 'UI.ReferenceFacet', ID: 'Assignment',         Label: '{i18n>Assignment}',         Target: '@UI.FieldGroup#Assignment' },
+    { $Type: 'UI.ReferenceFacet', ID: 'AdministrativeData', Label: '{i18n>AdministrativeData}', Target: '@UI.FieldGroup#AdministrativeData' },
+  ],
+  UI.FieldGroup #GeneralInformation       : { Data: [
+    { Value: name },
+    { Value: email },
+  ] },
+  UI.FieldGroup #CosmicDetails            : { Data: [
+    { Value: stardustCollection },
+    { Value: stardustStatus, Criticality: stardustStatusCriticality },
+    { Value: wormholeNavigationSkill },
+    { Value: spacesuitColor_code },
+  ] },
+  UI.FieldGroup #Assignment               : { Data: [
+    { Value: originPlanet_code },
+    { Value: department_ID },
+    { Value: position_ID },
+  ] },
+  UI.FieldGroup #AdministrativeData       : { Data: [
+    { Value: createdBy },
+    { Value: createdAt },
+    { Value: modifiedBy },
+    { Value: modifiedAt },
+  ] },
+);
+
+annotate service.Spacefarers with {
+  stardustStatus @Core.Computed;
+};

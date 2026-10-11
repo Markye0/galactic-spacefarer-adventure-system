@@ -79,3 +79,53 @@ describe('list report annotations', () => {
     assert.deepEqual([...used].filter(key => !defined.has(key)), [])
   })
 })
+
+describe('object page annotations', () => {
+  let spacefarers: Annotated
+
+  before(async () => {
+    spacefarers = cds.linked(await cds.load('*')).definitions['SpacefarerService.Spacefarers'] as unknown as Annotated
+  })
+
+  const fields = (group: string) =>
+    (spacefarers[`@UI.FieldGroup#${group}.Data`] as { Value: unknown }[]).map(field => path(field.Value))
+
+  it('is organised into four sections', () => {
+    const facets = spacefarers['@UI.Facets'] as { Label: string; Target: string }[]
+    assert.deepEqual(
+      facets.map(({ Label, Target }) => [Label, Target]),
+      [
+        ['{i18n>GeneralInformation}', '@UI.FieldGroup#GeneralInformation'],
+        ['{i18n>CosmicDetails}', '@UI.FieldGroup#CosmicDetails'],
+        ['{i18n>Assignment}', '@UI.FieldGroup#Assignment'],
+        ['{i18n>AdministrativeData}', '@UI.FieldGroup#AdministrativeData'],
+      ],
+    )
+  })
+
+  it('shows the cosmic details, including stardust collection and spacesuit color', () => {
+    assert.deepEqual(fields('CosmicDetails'), ['stardustCollection', 'stardustStatus', 'wormholeNavigationSkill', 'spacesuitColor_code'])
+  })
+
+  it('shows general information, assignment and administrative data', () => {
+    assert.deepEqual(fields('GeneralInformation'), ['name', 'email'])
+    assert.deepEqual(fields('Assignment'), ['originPlanet_code', 'department_ID', 'position_ID'])
+    assert.deepEqual(fields('AdministrativeData'), ['createdBy', 'createdAt', 'modifiedBy', 'modifiedAt'])
+  })
+
+  it('highlights status, stardust and skill in the header', () => {
+    const header = spacefarers['@UI.HeaderFacets'] as { Target: string }[]
+    assert.deepEqual(header.map(facet => facet.Target), [
+      '@UI.DataPoint#StardustStatus',
+      '@UI.DataPoint#StardustCollection',
+      '@UI.DataPoint#WormholeNavigationSkill',
+    ])
+    assert.equal(path(spacefarers['@UI.DataPoint#StardustStatus.Criticality']), 'stardustStatusCriticality')
+    assert.equal(spacefarers['@UI.DataPoint#WormholeNavigationSkill.TargetValue'], 10)
+  })
+
+  it('does not let the derived stardust status be edited', () => {
+    const elements = (spacefarers as { elements: Record<string, Annotated> }).elements
+    assert.equal(elements.stardustStatus['@Core.Computed'], true)
+  })
+})
