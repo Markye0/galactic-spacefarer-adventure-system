@@ -6,11 +6,24 @@
     "@sap/cds": "^10"
   },
   "devDependencies": {
-    "@cap-js/sqlite": "^3"
+    "@cap-js/cds-typer": ">=0.1",
+    "@cap-js/cds-types": "^0.18.0",
+    "@cap-js/sqlite": "^3",
+    "@types/node": "^24.0.0",
+    "eslint": "^10.12.0",
+    "tsx": "^4",
+    "typescript": "~6.0",
+    "typescript-eslint": "^8.71.1"
   },
   "scripts": {
     "start": "cds-serve",
-    "test": "node --test"
+    "watch": "cds watch",
+    "test": "node --import tsx --test",
+    "lint": "eslint .",
+    "typecheck": "cds-typer \"*\" --outputDirectory @cds-models && tsc"
   },
-  "private": true
+  "private": true,
+  "imports": {
+    "#cds-models/*": "./@cds-models/*/index.js"
+  }
 }
