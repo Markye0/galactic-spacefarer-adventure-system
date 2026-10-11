@@ -6,12 +6,9 @@ import { buildWelcomeEmail, type NewSpacefarer } from './lib/welcome-email.js'
 
 const LOG = cds.log('spacefarers')
 
-// Entities that can be reached by navigating from a spacefarer and are readable on their own
-const NAVIGABLE_FROM_SPACEFARERS = ['Departments', 'Positions', 'Planets', 'SpacesuitColors', 'DraftAdministrativeData']
-
 export default class SpacefarerService extends cds.ApplicationService {
   init() {
-    this.before('READ', NAVIGABLE_FROM_SPACEFARERS, req => this.authorizeNavigation(req))
+    this.before('READ', '*', req => this.authorizeNavigation(req))
     this.before(['CREATE', 'UPDATE'], Spacefarers, req => this.rejectForeignPlanet(req))
     this.before('NEW', Spacefarers.drafts, req => this.prefillOriginPlanet(req))
     this.before('CREATE', Spacefarers, req => this.prepareCandidate(req))
@@ -23,14 +20,16 @@ export default class SpacefarerService extends cds.ApplicationService {
 
   /**
    * For a path such as Spacefarers(<ID>)/department, CAP authorizes only the entity the path
-   * ends at. Master data is readable by everyone, so the spacefarer the path starts from has
-   * to be checked here: it must be one the user is allowed to read.
+   * ends at. Master data is readable by everyone, so the record the path starts from has to
+   * be checked here: it must be one the user is allowed to read. This runs for every read,
+   * whatever entity the path ends at, so entities added later are covered as well.
    */
   private async authorizeNavigation(req: cds.Request) {
     const [start, ...navigation] = req.query.SELECT?.from?.ref ?? []
     if (navigation.length === 0) return
 
-    const startingPoint = await this.run(SELECT.one.from({ ref: [start] }).columns('ID'))
+    // Reading through the service applies the restrictions of the current user
+    const startingPoint = await this.run(SELECT.one.from({ ref: [start] }))
     if (!startingPoint) req.reject(404)
   }
 
