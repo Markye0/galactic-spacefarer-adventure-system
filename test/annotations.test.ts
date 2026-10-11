@@ -1,0 +1,81 @@
+import { describe, it, before } from 'node:test'
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import cds from '@sap/cds'
+
+type Annotated = Record<string, unknown>
+const path = (value: unknown) => (value as { '=': string })['=']
+
+describe('list report annotations', () => {
+  let model: cds.csn.CSN
+  let spacefarers: Annotated
+
+  before(async () => {
+    model = await cds.load('*')
+    spacefarers = cds.linked(model).definitions['SpacefarerService.Spacefarers'] as unknown as Annotated
+  })
+
+  it('shows the spacefarer columns, with the stardust status colour-coded', () => {
+    const columns = spacefarers['@UI.LineItem'] as { Value: unknown; Criticality?: unknown }[]
+    assert.deepEqual(columns.map(column => path(column.Value)), [
+      'name',
+      'stardustCollection',
+      'stardustStatus',
+      'spacesuitColor_code',
+      'originPlanet_code',
+      'wormholeNavigationSkill',
+      'department_ID',
+      'position_ID',
+    ])
+    const status = columns.find(column => path(column.Value) === 'stardustStatus')
+    assert.equal(path(status?.Criticality), 'stardustStatusCriticality')
+  })
+
+  it('never hides name, stardust and spacesuit color on narrow screens', () => {
+    const columns = spacefarers['@UI.LineItem'] as { Value: unknown; '@UI.Importance'?: { '#': string } }[]
+    const important = columns.filter(column => column['@UI.Importance']?.['#'] === 'High').map(column => path(column.Value))
+    assert.deepEqual(important, ['name', 'stardustCollection', 'stardustStatus', 'spacesuitColor_code'])
+  })
+
+  it('offers planet, spacesuit color, department and position as filters', () => {
+    const filters = spacefarers['@UI.SelectionFields'] as unknown[]
+    assert.deepEqual(filters.map(path), ['originPlanet_code', 'spacesuitColor_code', 'department_ID', 'position_ID'])
+  })
+
+  it('sorts by name by default', () => {
+    const [sortOrder] = spacefarers['@UI.PresentationVariant.SortOrder'] as { Property: unknown; Descending?: boolean }[]
+    assert.equal(path(sortOrder.Property), 'name')
+    assert.notEqual(sortOrder.Descending, true)
+  })
+
+  it('names the entity for the page title', () => {
+    assert.equal(spacefarers['@UI.HeaderInfo.TypeName'], '{i18n>Spacefarer}')
+    assert.equal(spacefarers['@UI.HeaderInfo.TypeNamePlural'], '{i18n>Spacefarers}')
+  })
+
+  it('shows names instead of codes and offers dropdowns for the references', () => {
+    const elements = (spacefarers as { elements: Record<string, Annotated> }).elements
+    const texts = { originPlanet: 'originPlanet.name', spacesuitColor: 'spacesuitColor.name', department: 'department.name', position: 'position.title' }
+    for (const [element, text] of Object.entries(texts)) {
+      assert.equal(path(elements[element]['@Common.Text']), text)
+      assert.equal(elements[element]['@Common.ValueListWithFixedValues'], true)
+    }
+  })
+
+  it('labels every visible field', () => {
+    const elements = (spacefarers as { elements: Record<string, Annotated> }).elements
+    const labelled = ['name', 'email', 'stardustCollection', 'stardustStatus', 'wormholeNavigationSkill', 'originPlanet', 'spacesuitColor', 'department', 'position']
+    for (const element of labelled) {
+      assert.match(String(elements[element]['@title']), /^\{i18n>\w+\}$/, `${element} has no label`)
+    }
+  })
+
+  it('has a text for every i18n key it uses', () => {
+    const read = (file: string) => readFileSync(import.meta.dirname + '/../' + file, 'utf8')
+    const used = new Set([...read('app/spacefarers/annotations.cds').matchAll(/\{i18n>(\w+)\}/g)].map(match => match[1]))
+    const defined = new Set([...read('_i18n/i18n.properties').matchAll(/^(\w+)=/gm)].map(match => match[1]))
+
+    assert.ok(used.size > 0)
+    assert.deepEqual([...used].filter(key => !defined.has(key)), [])
+  })
+})
