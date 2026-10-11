@@ -50,7 +50,7 @@ the production profile.
 | `npm run watch`     | start the server with live reload       |
 | `npm test`          | run all tests                           |
 | `npm run typecheck` | generate the model types and type-check |
-| `npm run lint`      | lint CDS and TypeScript sources         |
+| `npm run lint`      | lint the TypeScript sources             |
 
 ## Roles and permissions
 
