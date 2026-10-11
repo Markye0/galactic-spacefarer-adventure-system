@@ -12,7 +12,7 @@ const LOG = cds.log('spacefarers')
  */
 function planetsOf(user: cds.User): string[] {
   const planet: string | string[] | undefined = user.attr.planet
-  return planet === undefined ? [] : [planet].flat()
+  return planet === undefined ? [] : [...new Set([planet].flat())]
 }
 
 export default class SpacefarerService extends cds.ApplicationService {
@@ -63,12 +63,14 @@ export default class SpacefarerService extends cds.ApplicationService {
   }
 
   private describeCurrentUser({ user }: cds.Request) {
-    const canManageSpacefarers = user.is('GalacticAdmin') || user.is('SpacefarerManager')
+    const isAdmin = user.is('GalacticAdmin')
+    const planets = planetsOf(user)
     return {
       id: user.id,
-      canManageSpacefarers,
+      // A manager who is not bound to any planet has no spacefarers to manage
+      canManageSpacefarers: isAdmin || (user.is('SpacefarerManager') && planets.length > 0),
       // With exactly one planet there is nothing to choose: it is prefilled and locked
-      canChoosePlanet: canManageSpacefarers && planetsOf(user).length !== 1,
+      canChoosePlanet: isAdmin || (user.is('SpacefarerManager') && planets.length > 1),
     }
   }
 
