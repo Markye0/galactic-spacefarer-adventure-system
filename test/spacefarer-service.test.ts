@@ -4,7 +4,7 @@ import cds from '@sap/cds'
 import { as, spacefarerDrafts } from './support.js'
 
 const test = cds.test(import.meta.dirname + '/..')
-const { GET, POST, DELETE, axios } = test
+const { GET, POST, PATCH, DELETE, axios } = test
 
 // Resolve on every status code, so tests can assert on rejections
 axios.defaults.validateStatus = () => true
@@ -151,6 +151,53 @@ describe('SpacefarerService', () => {
 
       const unchanged = await GET(`/Spacefarers(${PLANET_X_SPACEFARER})`, as('alice'))
       assert.equal(unchanged.data.originPlanet_code, 'X')
+    })
+  })
+
+  // The Fiori UI always goes through a draft. An API client can write to the active record
+  // directly, and has to meet the same rules.
+  describe('manager of Planet X writing without a draft', () => {
+    const active = (id: string) => `/Spacefarers(ID=${id},IsActiveEntity=true)`
+
+    it('creates a spacefarer on Planet X', async () => {
+      const response = await POST('/Spacefarers', { ...recruit('X'), IsActiveEntity: true }, as('xavier'))
+      assert.equal(response.status, 201)
+      assert.equal(response.data.IsActiveEntity, true)
+    })
+
+    it('cannot create a spacefarer on Planet Y', async () => {
+      const response = await POST('/Spacefarers', { ...recruit('Y'), IsActiveEntity: true }, as('xavier'))
+      assert.equal(response.status, 403)
+    })
+
+    it('cannot move a spacefarer to Planet Y', async () => {
+      const response = await PATCH(active(PLANET_X_SPACEFARER), { originPlanet_code: 'Y' }, as('xavier'))
+      assert.equal(response.status, 403)
+    })
+
+    it('cannot update a spacefarer of Planet Y', async () => {
+      const response = await PATCH(active(PLANET_Y_SPACEFARER), { spacesuitColor_code: 'COMET_WHITE' }, as('xavier'))
+      assert.ok([403, 404].includes(response.status), `unexpected status ${response.status}`)
+
+      const unchanged = await GET(active(PLANET_Y_SPACEFARER), as('alice'))
+      assert.equal(unchanged.data.spacesuitColor_code, 'SOLAR_ORANGE')
+    })
+
+    it('cannot delete a spacefarer of Planet Y', async () => {
+      const response = await DELETE(active(PLANET_Y_SPACEFARER), as('xavier'))
+      assert.ok([403, 404].includes(response.status), `unexpected status ${response.status}`)
+
+      const stillThere = await GET(active(PLANET_Y_SPACEFARER), as('alice'))
+      assert.equal(stillThere.status, 200)
+    })
+  })
+
+  describe('viewer of Planet X writing without a draft', () => {
+    it('cannot create, update or delete a spacefarer', async () => {
+      const id = `/Spacefarers(ID=${PLANET_X_SPACEFARER},IsActiveEntity=true)`
+      assert.equal((await POST('/Spacefarers', { ...recruit('X'), IsActiveEntity: true }, as('xena'))).status, 403)
+      assert.equal((await PATCH(id, { spacesuitColor_code: 'COMET_WHITE' }, as('xena'))).status, 403)
+      assert.equal((await DELETE(id, as('xena'))).status, 403)
     })
   })
 

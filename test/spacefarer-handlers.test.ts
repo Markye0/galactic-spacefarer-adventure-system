@@ -6,7 +6,7 @@ import { as, spacefarerDrafts } from './support.js'
 import { mailer, type Mail } from '../srv/lib/mailer.js'
 
 const test = cds.test(import.meta.dirname + '/..')
-const { GET, axios } = test
+const { GET, POST, axios } = test
 
 axios.defaults.validateStatus = () => true
 axios.defaults.path = '/odata/v4/spacefarer'
@@ -195,6 +195,40 @@ describe('spacefarer event handlers', () => {
     it('sends nothing when a spacefarer is updated', async () => {
       await update(EXISTING_SPACEFARER, { stardustCollection: 2000 }, 'alice')
       await afterCommit()
+      assert.equal(sentMails().length, 0)
+    })
+
+    it('sends nothing when the creation is rolled back with its changeset', async () => {
+      // One atomic group: a valid creation followed by an update that fails
+      const batch = await POST(
+        '/$batch',
+        {
+          requests: [
+            {
+              id: 'create',
+              atomicityGroup: 'launch',
+              method: 'POST',
+              url: 'Spacefarers',
+              headers: { 'content-type': 'application/json' },
+              body: { ...candidate({ originPlanet_code: 'X' }), IsActiveEntity: true },
+            },
+            {
+              id: 'failing-update',
+              atomicityGroup: 'launch',
+              method: 'PATCH',
+              url: `Spacefarers(ID=${EXISTING_SPACEFARER},IsActiveEntity=true)`,
+              headers: { 'content-type': 'application/json' },
+              body: { stardustCollection: -1 },
+            },
+          ],
+        },
+        as('alice'),
+      )
+      await afterCommit()
+
+      assert.equal(batch.status, 200)
+      const count = await GET('/Spacefarers/$count?$filter=IsActiveEntity eq true', as('alice'))
+      assert.equal(count.data, 80)
       assert.equal(sentMails().length, 0)
     })
 
