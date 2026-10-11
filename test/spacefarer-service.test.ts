@@ -296,6 +296,40 @@ describe('SpacefarerService', () => {
       assert.equal(response.status, 200)
     })
 
+    // Code lists carry generated translation entities, which are reachable from a spacefarer too
+    describe('to the translations of a code list', () => {
+      const translate = () =>
+        cds.db.run(
+          INSERT.into('sap.galaxy.spacefarers.SpacesuitColors.texts').entries({ locale: 'de', code: 'SOLAR_ORANGE', name: 'Sonnenorange' }),
+        )
+
+      for (const path of ['spacesuitColor/texts', 'spacesuitColor/texts/$count', "spacesuitColor/texts(locale='de',code='SOLAR_ORANGE')"]) {
+        it(`does not reveal ${path} of a Planet Y spacefarer`, async () => {
+          await translate()
+          for (const username of ['nobody', 'xena']) {
+            const response = await GET(`${spacefarer(PLANET_Y_SPACEFARER)}/${path}`, as(username))
+            assert.ok([403, 404].includes(response.status), `${username}: unexpected status ${response.status}`)
+          }
+        })
+      }
+
+      it('does not reveal the localized name of the color of a Planet Y spacefarer', async () => {
+        await translate()
+        const response = await GET(`${spacefarer(PLANET_Y_SPACEFARER)}/spacesuitColor/localized`, {
+          ...as('xena'),
+          headers: { 'Accept-Language': 'de' },
+        })
+        assert.ok([403, 404].includes(response.status), `unexpected status ${response.status}`)
+      })
+
+      it('is still readable for a spacefarer the user may read', async () => {
+        await translate()
+        const response = await GET(`${spacefarer(PLANET_Y_SPACEFARER)}/spacesuitColor/texts`, as('yuri'))
+        assert.equal(response.status, 200)
+        assert.equal(response.data.value[0].name, 'Sonnenorange')
+      })
+    })
+
     describe('of a draft', () => {
       const draft = (id: string) => `/Spacefarers(ID=${id},IsActiveEntity=false)`
 

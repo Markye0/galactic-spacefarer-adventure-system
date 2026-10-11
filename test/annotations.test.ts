@@ -141,6 +141,14 @@ describe('object page annotations', () => {
     assert.equal(whenFalse, READ_ONLY)
   })
 
+  it('refreshes the stardust status when the stardust collection is edited', () => {
+    const sideEffects = '@Common.SideEffects#StardustCollectionChanged'
+    const paths = (key: string) => (spacefarers[`${sideEffects}.${key}`] as unknown[]).map(entry => (typeof entry === 'string' ? entry : path(entry)))
+
+    assert.deepEqual(paths('SourceProperties'), ['stardustCollection'])
+    assert.deepEqual(paths('TargetProperties'), ['stardustStatus', 'stardustStatusCriticality'])
+  })
+
   it('does not let the derived stardust status be edited', () => {
     const elements = (spacefarers as { elements: Record<string, Annotated> }).elements
     assert.equal(elements.stardustStatus['@Core.Computed'], true)

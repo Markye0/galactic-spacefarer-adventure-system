@@ -29,5 +29,4 @@ server:
 builder:
   resources:
     excludes:
-      - /test/**
       - /localService/**
