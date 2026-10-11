@@ -6,6 +6,7 @@
     "@sap/cds": "^10"
   },
   "devDependencies": {
+    "@cap-js/cds-test": "^1.0.2",
     "@cap-js/cds-typer": ">=0.1",
     "@cap-js/cds-types": "^0.18.0",
     "@cap-js/sqlite": "^3",
@@ -18,12 +19,72 @@
   "scripts": {
     "start": "cds-serve",
     "watch": "cds watch",
-    "test": "node --import tsx --test",
+    "types": "cds-typer \"*\" --outputDirectory @cds-models",
+    "pretest": "npm run types",
+    "test": "node --import tsx --import ./test/setup.ts --test \"test/**/*.test.ts\"",
     "lint": "eslint .",
-    "typecheck": "cds-typer \"*\" --outputDirectory @cds-models && tsc"
+    "typecheck": "npm run types && tsc"
   },
   "private": true,
   "imports": {
     "#cds-models/*": "./@cds-models/*/index.js"
+  },
+  "cds": {
+    "requires": {
+      "auth": {
+        "[development]": {
+          "kind": "mocked",
+          "users": {
+            "alice": {
+              "password": "pass",
+              "roles": [
+                "GalacticAdmin"
+              ]
+            },
+            "xavier": {
+              "password": "pass",
+              "roles": [
+                "SpacefarerManager"
+              ],
+              "attr": {
+                "planet": "X"
+              }
+            },
+            "xena": {
+              "password": "pass",
+              "roles": [
+                "SpacefarerViewer"
+              ],
+              "attr": {
+                "planet": "X"
+              }
+            },
+            "yara": {
+              "password": "pass",
+              "roles": [
+                "SpacefarerManager"
+              ],
+              "attr": {
+                "planet": "Y"
+              }
+            },
+            "yuri": {
+              "password": "pass",
+              "roles": [
+                "SpacefarerViewer"
+              ],
+              "attr": {
+                "planet": "Y"
+              }
+            },
+            "nobody": {
+              "password": "pass",
+              "roles": []
+            },
+            "*": false
+          }
+        }
+      }
+    }
   }
 }
