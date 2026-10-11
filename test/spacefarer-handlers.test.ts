@@ -243,6 +243,16 @@ describe('spacefarer event handlers', () => {
       delivered()
     })
 
+    it('still answers with success when sending the email throws right away', async () => {
+      send.mock.mockImplementation(() => {
+        throw new Error('mailer is misconfigured')
+      })
+
+      const response = await create(candidate(), 'alice')
+
+      assert.equal(response.status, 201)
+    })
+
     it('keeps the spacefarer when the email cannot be sent', async () => {
       send.mock.mockImplementation(async () => {
         throw new Error('SMTP server unreachable')

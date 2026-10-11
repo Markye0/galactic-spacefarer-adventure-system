@@ -100,9 +100,10 @@ export default class SpacefarerService extends cds.ApplicationService {
     // req.data holds the candidate as stored, including the enhanced values
     const spacefarer = req.data as NewSpacefarer
     req.on('succeeded', () => {
-      mailer.send(buildWelcomeEmail(spacefarer)).catch(error => {
-        LOG.error(`Welcome email to ${spacefarer.email} could not be sent:`, error)
-      })
+      // Started from a promise chain, so that not even a synchronous error reaches the request
+      Promise.resolve()
+        .then(() => mailer.send(buildWelcomeEmail(spacefarer)))
+        .catch(error => LOG.error(`Welcome email to ${spacefarer.email} could not be sent:`, error))
     })
   }
 }
