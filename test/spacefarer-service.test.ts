@@ -10,7 +10,7 @@ const { GET, POST, DELETE, axios } = test
 axios.defaults.validateStatus = () => true
 axios.defaults.path = '/odata/v4/spacefarer'
 
-const { create, update } = spacefarerDrafts(test)
+const { create, update, editDraft } = spacefarerDrafts(test)
 
 const PLANET_X_SPACEFARER = 'a0000000-0000-4000-8000-000000000001' // Nova Kepler
 const PLANET_Y_SPACEFARER = 'a0000000-0000-4000-8000-000000000007' // Vela Andromeda
@@ -211,6 +211,60 @@ describe('SpacefarerService', () => {
       assert.equal(response.status, 200)
       assert.equal(response.data.department.name, 'Wormhole Navigation')
       assert.equal(response.data.originPlanet.name, 'Planet X')
+    })
+  })
+
+  describe('navigation from a spacefarer', () => {
+    const MASTER_DATA = ['originPlanet', 'spacesuitColor', 'department', 'position']
+    const spacefarer = (id: string) => `/Spacefarers(ID=${id},IsActiveEntity=true)`
+
+    for (const username of ['nobody', 'xena', 'xavier']) {
+      for (const association of MASTER_DATA) {
+        it(`does not reveal the ${association} of a Planet Y spacefarer to ${username}`, async () => {
+          const response = await GET(`${spacefarer(PLANET_Y_SPACEFARER)}/${association}`, as(username))
+          assert.ok([403, 404].includes(response.status), `unexpected status ${response.status}`)
+        })
+      }
+    }
+
+    it('does not reveal a property of the master data either', async () => {
+      const response = await GET(`${spacefarer(PLANET_Y_SPACEFARER)}/department/name`, as('xena'))
+      assert.ok([403, 404].includes(response.status), `unexpected status ${response.status}`)
+    })
+
+    it('does not reveal master data through the short key form', async () => {
+      const response = await GET(`/Spacefarers(${PLANET_Y_SPACEFARER})/department`, as('xena'))
+      assert.ok([403, 404].includes(response.status), `unexpected status ${response.status}`)
+    })
+
+    for (const association of MASTER_DATA) {
+      it(`still reaches the ${association} of a spacefarer the user may read`, async () => {
+        const response = await GET(`${spacefarer(PLANET_X_SPACEFARER)}/${association}`, as('xena'))
+        assert.equal(response.status, 200)
+      })
+    }
+
+    it('reaches master data of any spacefarer for the galactic admin', async () => {
+      const response = await GET(`${spacefarer(PLANET_Y_SPACEFARER)}/department`, as('alice'))
+      assert.equal(response.status, 200)
+    })
+
+    describe('of a draft', () => {
+      const draft = (id: string) => `/Spacefarers(ID=${id},IsActiveEntity=false)`
+
+      for (const path of ['DraftAdministrativeData', 'department']) {
+        it(`does not reveal ${path} to another user`, async () => {
+          await editDraft(PLANET_Y_SPACEFARER, 'yara')
+          const response = await GET(`${draft(PLANET_Y_SPACEFARER)}/${path}`, as('xena'))
+          assert.ok([403, 404].includes(response.status), `unexpected status ${response.status}`)
+        })
+
+        it(`shows ${path} to the owner of the draft`, async () => {
+          await editDraft(PLANET_Y_SPACEFARER, 'yara')
+          const response = await GET(`${draft(PLANET_Y_SPACEFARER)}/${path}`, as('yara'))
+          assert.equal(response.status, 200)
+        })
+      }
     })
   })
 
