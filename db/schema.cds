@@ -7,10 +7,10 @@ entity Spacefarers : cuid, managed {
   email                   : String(255) @mandatory;
   stardustCollection      : Integer default 0;
   wormholeNavigationSkill : Integer default 1;
-  originPlanet            : Association to Planets @mandatory;
-  spacesuitColor          : Association to SpacesuitColors;
-  department              : Association to Departments;
-  position                : Association to Positions;
+  originPlanet            : Association to Planets @mandatory @assert.target;
+  spacesuitColor          : Association to SpacesuitColors @assert.target;
+  department              : Association to Departments @assert.target;
+  position                : Association to Positions @assert.target;
 }
 
 entity Departments : cuid {

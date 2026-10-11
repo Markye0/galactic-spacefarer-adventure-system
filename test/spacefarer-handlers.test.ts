@@ -130,6 +130,36 @@ describe('spacefarer event handlers', () => {
     })
   })
 
+  describe('references to master data', () => {
+    const UNKNOWN_ID = 'ffffffff-ffff-4fff-8fff-ffffffffffff'
+    const unknown = {
+      originPlanet_code: 'ZZZ',
+      spacesuitColor_code: 'BOGUS',
+      department_ID: UNKNOWN_ID,
+      position_ID: UNKNOWN_ID,
+    }
+
+    for (const [reference, value] of Object.entries(unknown)) {
+      it(`rejects a new spacefarer with an unknown ${reference}`, async () => {
+        const response = await create(candidate({ [reference]: value }), 'alice')
+        assert.equal(response.status, 400)
+      })
+
+      it(`rejects changing ${reference} to an unknown value`, async () => {
+        const response = await update(EXISTING_SPACEFARER, { [reference]: value }, 'alice')
+        assert.equal(response.status, 400)
+
+        const stored = await GET(`/Spacefarers(${EXISTING_SPACEFARER})`, as('alice'))
+        assert.notEqual(stored.data[reference], value)
+      })
+    }
+
+    it('still accepts a spacefarer without color, department and position', async () => {
+      const response = await create(candidate(), 'alice')
+      assert.equal(response.status, 201)
+    })
+  })
+
   describe('after CREATE: welcome email', () => {
     it('sends one email to the new spacefarer', async () => {
       await create(candidate({ stardustCollection: 250, wormholeNavigationSkill: 4 }), 'alice')
