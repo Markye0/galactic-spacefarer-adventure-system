@@ -48,6 +48,7 @@ the production profile.
 | Command             | Purpose                                 |
 |---------------------|-----------------------------------------|
 | `npm run watch`     | start the server with live reload       |
+| `npm start`         | start the server without live reload    |
 | `npm test`          | run all tests                           |
 | `npm run typecheck` | generate the model types and type-check |
 | `npm run lint`      | lint the TypeScript sources             |
@@ -87,8 +88,9 @@ read-only. It is protected on three levels:
   becomes part of every database query, so counts and paging stay correct.
 
 Planet isolation also holds on the less obvious paths: a manager cannot
-create a spacefarer on another planet or move one there, and spacefarers
-of other planets cannot be reached through departments or positions.
+create a spacefarer on another planet or move one there, spacefarers of
+other planets cannot be reached through departments or positions, and
+nothing can be read by navigating from a spacefarer of another planet.
 
 ### Event handlers
 
@@ -99,11 +101,12 @@ of other planets cannot be reached through departments or positions.
   maximum allows, and candidates arriving with 1000 units or more get one
   extra skill level.
 - **Before update** – the same validation, without the bonuses.
-- **After create** – sends the welcome email, see
-  [Email notifications](#email-notifications).
+- **After create** – tells the user which bonuses were granted and sends
+  the welcome email, see [Email notifications](#email-notifications).
 
-The rules are plain functions in [`srv/lib/candidate.ts`](srv/lib/candidate.ts),
-so they are unit-tested without starting a server.
+The rules are plain functions in
+[`srv/lib/candidate.ts`](srv/lib/candidate.ts), so they are unit-tested
+without starting a server.
 
 ### User interface
 
