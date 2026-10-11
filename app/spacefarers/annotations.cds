@@ -116,3 +116,9 @@ annotate service.Spacefarers with @(
   UI.UpdateHidden: { $edmJson: { $Not: { $Path: '/CurrentUser/canManageSpacefarers' } } },
   UI.DeleteHidden: { $edmJson: { $Not: { $Path: '/CurrentUser/canManageSpacefarers' } } },
 );
+
+// Only users who are not bound to a planet choose the planet of a spacefarer (7 = mandatory,
+// 1 = read-only). Everyone else gets their own planet prefilled by the service.
+annotate service.Spacefarers with {
+  originPlanet @Common.FieldControl: { $edmJson: { $If: [ { $Path: '/CurrentUser/canChoosePlanet' }, 7, 1 ] } };
+};

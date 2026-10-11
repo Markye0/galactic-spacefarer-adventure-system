@@ -131,6 +131,16 @@ describe('object page annotations', () => {
     }
   })
 
+  it('lets only users without a planet of their own choose the origin planet', () => {
+    const elements = (spacefarers as { elements: Record<string, Annotated> }).elements
+    const MANDATORY = 7
+    const READ_ONLY = 1
+    const [condition, whenTrue, whenFalse] = elements.originPlanet['@Common.FieldControl.$edmJson.$If'] as [{ $Path: string }, number, number]
+    assert.equal(condition.$Path, '/CurrentUser/canChoosePlanet')
+    assert.equal(whenTrue, MANDATORY)
+    assert.equal(whenFalse, READ_ONLY)
+  })
+
   it('does not let the derived stardust status be edited', () => {
     const elements = (spacefarers as { elements: Record<string, Annotated> }).elements
     assert.equal(elements.stardustStatus['@Core.Computed'], true)

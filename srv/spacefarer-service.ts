@@ -9,6 +9,7 @@ const LOG = cds.log('spacefarers')
 export default class SpacefarerService extends cds.ApplicationService {
   init() {
     this.before(['CREATE', 'UPDATE'], Spacefarers, req => this.rejectForeignPlanet(req))
+    this.before('NEW', Spacefarers.drafts, req => this.prefillOriginPlanet(req))
     this.before('CREATE', Spacefarers, req => this.prepareCandidate(req))
     this.before('UPDATE', Spacefarers, req => this.validate(req))
     this.after('CREATE', Spacefarers, (_, req) => this.sendWelcomeEmail(req))
@@ -28,6 +29,12 @@ export default class SpacefarerService extends cds.ApplicationService {
     if (planet && planet !== req.user.attr.planet) {
       req.reject(403, 'You can only manage spacefarers of your own planet.')
     }
+  }
+
+  /** A new spacefarer starts on the planet of the user creating it; a galactic admin has none. */
+  private prefillOriginPlanet(req: cds.Request<Spacefarer>) {
+    const { planet } = req.user.attr
+    if (planet) req.data.originPlanet_code ??= planet
   }
 
   private describeCurrentUser({ user }: cds.Request) {
