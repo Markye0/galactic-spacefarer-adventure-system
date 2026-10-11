@@ -21,7 +21,7 @@
     "typescript-eslint": "^8.71.1"
   },
   "scripts": {
-    "start": "cds-serve",
+    "start": "cds-tsx serve",
     "watch": "cds watch",
     "types": "cds-typer \"*\" --outputDirectory @cds-models",
     "pretest": "npm run types",
@@ -31,6 +31,9 @@
     "watch-spacefarers": "cds watch --open sap.galaxy.spacefarers/index.html?sap-ui-xx-viewCache=false --livereload false"
   },
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "imports": {
     "#cds-models/*": "./@cds-models/*/index.js"
   },

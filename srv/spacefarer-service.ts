@@ -6,8 +6,12 @@ import { buildWelcomeEmail, type NewSpacefarer } from './lib/welcome-email.js'
 
 const LOG = cds.log('spacefarers')
 
+// Entities that can be reached by navigating from a spacefarer and are readable on their own
+const NAVIGABLE_FROM_SPACEFARERS = ['Departments', 'Positions', 'Planets', 'SpacesuitColors', 'DraftAdministrativeData']
+
 export default class SpacefarerService extends cds.ApplicationService {
   init() {
+    this.before('READ', NAVIGABLE_FROM_SPACEFARERS, req => this.authorizeNavigation(req))
     this.before(['CREATE', 'UPDATE'], Spacefarers, req => this.rejectForeignPlanet(req))
     this.before('NEW', Spacefarers.drafts, req => this.prefillOriginPlanet(req))
     this.before('CREATE', Spacefarers, req => this.prepareCandidate(req))
@@ -15,6 +19,19 @@ export default class SpacefarerService extends cds.ApplicationService {
     this.after('CREATE', Spacefarers, (_, req) => this.sendWelcomeEmail(req))
     this.on('READ', CurrentUser, req => this.describeCurrentUser(req))
     return super.init()
+  }
+
+  /**
+   * For a path such as Spacefarers(<ID>)/department, CAP authorizes only the entity the path
+   * ends at. Master data is readable by everyone, so the spacefarer the path starts from has
+   * to be checked here: it must be one the user is allowed to read.
+   */
+  private async authorizeNavigation(req: cds.Request) {
+    const [start, ...navigation] = req.query.SELECT?.from?.ref ?? []
+    if (navigation.length === 0) return
+
+    const startingPoint = await this.run(SELECT.one.from({ ref: [start] }).columns('ID'))
+    if (!startingPoint) req.reject(404)
   }
 
   /**
@@ -67,17 +84,16 @@ export default class SpacefarerService extends cds.ApplicationService {
 
   /**
    * Sends the email only after the transaction has committed, so nobody is congratulated on a
-   * creation that was rolled back. A failed email is logged and does not affect the spacefarer.
+   * creation that was rolled back. Sending runs in the background: the user does not wait for
+   * the mail server, and a failed email is logged without affecting the spacefarer.
    */
   private sendWelcomeEmail(req: cds.Request<Spacefarer>) {
     // req.data holds the candidate as stored, including the enhanced values
     const spacefarer = req.data as NewSpacefarer
-    req.on('succeeded', async () => {
-      try {
-        await mailer.send(buildWelcomeEmail(spacefarer))
-      } catch (error) {
+    req.on('succeeded', () => {
+      mailer.send(buildWelcomeEmail(spacefarer)).catch(error => {
         LOG.error(`Welcome email to ${spacefarer.email} could not be sent:`, error)
-      }
+      })
     })
   }
 }

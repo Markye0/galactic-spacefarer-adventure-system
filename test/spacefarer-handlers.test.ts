@@ -6,7 +6,7 @@ import { as, spacefarerDrafts } from './support.js'
 import { mailer, type Mail } from '../srv/lib/mailer.js'
 
 const test = cds.test(import.meta.dirname + '/..')
-const { GET, axios } = test
+const { GET, POST, axios } = test
 
 axios.defaults.validateStatus = () => true
 axios.defaults.path = '/odata/v4/spacefarer'
@@ -32,7 +32,7 @@ const errorsOf = (response: { data: { error: ODataError } }) => response.data.er
 describe('spacefarer event handlers', () => {
   const send = mock.method(mailer, 'send', async () => {})
   const sentMails = () => send.mock.calls.map(call => call.arguments[0] as Mail)
-  // The email goes out after the response, once the transaction has committed
+  // The email is sent in the background once the transaction has committed
   const afterCommit = () => sleep(50)
 
   beforeEach(async () => {
@@ -46,7 +46,7 @@ describe('spacefarer event handlers', () => {
       const response = await create(candidate({ stardustCollection: -1 }), 'alice')
       assert.equal(response.status, 400)
       assert.deepEqual(errorsOf(response).map(({ target, message }) => ({ target, message })), [
-        { target: 'stardustCollection', message: 'Stardust collection must be 0 or more.' },
+        { target: 'stardustCollection', message: 'Stardust collection must be a whole number between 0 and 1,000,000,000.' },
       ])
     })
 
@@ -130,6 +130,36 @@ describe('spacefarer event handlers', () => {
     })
   })
 
+  describe('references to master data', () => {
+    const UNKNOWN_ID = 'ffffffff-ffff-4fff-8fff-ffffffffffff'
+    const unknown = {
+      originPlanet_code: 'ZZZ',
+      spacesuitColor_code: 'BOGUS',
+      department_ID: UNKNOWN_ID,
+      position_ID: UNKNOWN_ID,
+    }
+
+    for (const [reference, value] of Object.entries(unknown)) {
+      it(`rejects a new spacefarer with an unknown ${reference}`, async () => {
+        const response = await create(candidate({ [reference]: value }), 'alice')
+        assert.equal(response.status, 400)
+      })
+
+      it(`rejects changing ${reference} to an unknown value`, async () => {
+        const response = await update(EXISTING_SPACEFARER, { [reference]: value }, 'alice')
+        assert.equal(response.status, 400)
+
+        const stored = await GET(`/Spacefarers(${EXISTING_SPACEFARER})`, as('alice'))
+        assert.notEqual(stored.data[reference], value)
+      })
+    }
+
+    it('still accepts a spacefarer without color, department and position', async () => {
+      const response = await create(candidate(), 'alice')
+      assert.equal(response.status, 201)
+    })
+  })
+
   describe('after CREATE: welcome email', () => {
     it('sends one email to the new spacefarer', async () => {
       await create(candidate({ stardustCollection: 250, wormholeNavigationSkill: 4 }), 'alice')
@@ -168,6 +198,51 @@ describe('spacefarer event handlers', () => {
       assert.equal(sentMails().length, 0)
     })
 
+    it('sends nothing when the creation is rolled back with its changeset', async () => {
+      // One atomic group: a valid creation followed by an update that fails
+      const batch = await POST(
+        '/$batch',
+        {
+          requests: [
+            {
+              id: 'create',
+              atomicityGroup: 'launch',
+              method: 'POST',
+              url: 'Spacefarers',
+              headers: { 'content-type': 'application/json' },
+              body: { ...candidate({ originPlanet_code: 'X' }), IsActiveEntity: true },
+            },
+            {
+              id: 'failing-update',
+              atomicityGroup: 'launch',
+              method: 'PATCH',
+              url: `Spacefarers(ID=${EXISTING_SPACEFARER},IsActiveEntity=true)`,
+              headers: { 'content-type': 'application/json' },
+              body: { stardustCollection: -1 },
+            },
+          ],
+        },
+        as('alice'),
+      )
+      await afterCommit()
+
+      assert.equal(batch.status, 200)
+      const count = await GET('/Spacefarers/$count?$filter=IsActiveEntity eq true', as('alice'))
+      assert.equal(count.data, 80)
+      assert.equal(sentMails().length, 0)
+    })
+
+    it('does not make the user wait for the email', async () => {
+      let delivered = () => {}
+      send.mock.mockImplementation(() => new Promise<void>(resolve => (delivered = resolve)))
+
+      const response = await create(candidate(), 'alice')
+
+      assert.equal(response.status, 201)
+      assert.equal(send.mock.callCount(), 1) // sending has started, but has not finished
+      delivered()
+    })
+
     it('keeps the spacefarer when the email cannot be sent', async () => {
       send.mock.mockImplementation(async () => {
         throw new Error('SMTP server unreachable')
@@ -177,6 +252,7 @@ describe('spacefarer event handlers', () => {
       await afterCommit()
 
       assert.equal(response.status, 201)
+      assert.equal(send.mock.callCount(), 1)
       const stored = await GET(`/Spacefarers(${response.data.ID})`, as('alice'))
       assert.equal(stored.status, 200)
     })

@@ -71,9 +71,9 @@ three roles can sign in, but has no access to spacefarers.
 `Spacefarers` carry the stardust collection, wormhole navigation skill,
 origin planet and spacesuit color, and reference a department and a
 position. Departments and positions are master data entities, while planets
-and spacesuit colors are code lists. This gives the UI value helps without
-extra annotations and gives the authorization a stable planet code to rely
-on.
+and spacesuit colors are code lists. Code lists get value helps in the UI
+automatically, and the planet code gives the authorization a stable value to
+rely on.
 
 ### Service and authorization
 
@@ -92,11 +92,11 @@ of other planets cannot be reached through departments or positions.
 
 ### Event handlers
 
-- **Before create** – validates the stardust collection (0 or more), the
-  wormhole navigation skill (1 to 10) and the email address, and reports
-  all errors at once. A valid candidate is then enhanced: everyone gets a
-  100-unit stardust starter pack, and candidates arriving with 1000 units
-  or more get one extra skill level.
+- **Before create** – validates the stardust collection (0 to
+  1,000,000,000), the wormhole navigation skill (1 to 10) and the email
+  address, and reports all errors at once. A valid candidate is then
+  enhanced: everyone gets a 100-unit stardust starter pack, and candidates
+  arriving with 1000 units or more get one extra skill level.
 - **Before update** – the same validation, without the bonuses.
 - **After create** – sends the welcome email, see
   [Email notifications](#email-notifications).

@@ -4,13 +4,13 @@ import cds from '@sap/cds'
 import { as, spacefarerDrafts } from './support.js'
 
 const test = cds.test(import.meta.dirname + '/..')
-const { GET, POST, DELETE, axios } = test
+const { GET, POST, PATCH, DELETE, axios } = test
 
 // Resolve on every status code, so tests can assert on rejections
 axios.defaults.validateStatus = () => true
 axios.defaults.path = '/odata/v4/spacefarer'
 
-const { create, update } = spacefarerDrafts(test)
+const { create, update, editDraft } = spacefarerDrafts(test)
 
 const PLANET_X_SPACEFARER = 'a0000000-0000-4000-8000-000000000001' // Nova Kepler
 const PLANET_Y_SPACEFARER = 'a0000000-0000-4000-8000-000000000007' // Vela Andromeda
@@ -154,6 +154,53 @@ describe('SpacefarerService', () => {
     })
   })
 
+  // The Fiori UI always goes through a draft. An API client can write to the active record
+  // directly, and has to meet the same rules.
+  describe('manager of Planet X writing without a draft', () => {
+    const active = (id: string) => `/Spacefarers(ID=${id},IsActiveEntity=true)`
+
+    it('creates a spacefarer on Planet X', async () => {
+      const response = await POST('/Spacefarers', { ...recruit('X'), IsActiveEntity: true }, as('xavier'))
+      assert.equal(response.status, 201)
+      assert.equal(response.data.IsActiveEntity, true)
+    })
+
+    it('cannot create a spacefarer on Planet Y', async () => {
+      const response = await POST('/Spacefarers', { ...recruit('Y'), IsActiveEntity: true }, as('xavier'))
+      assert.equal(response.status, 403)
+    })
+
+    it('cannot move a spacefarer to Planet Y', async () => {
+      const response = await PATCH(active(PLANET_X_SPACEFARER), { originPlanet_code: 'Y' }, as('xavier'))
+      assert.equal(response.status, 403)
+    })
+
+    it('cannot update a spacefarer of Planet Y', async () => {
+      const response = await PATCH(active(PLANET_Y_SPACEFARER), { spacesuitColor_code: 'COMET_WHITE' }, as('xavier'))
+      assert.ok([403, 404].includes(response.status), `unexpected status ${response.status}`)
+
+      const unchanged = await GET(active(PLANET_Y_SPACEFARER), as('alice'))
+      assert.equal(unchanged.data.spacesuitColor_code, 'SOLAR_ORANGE')
+    })
+
+    it('cannot delete a spacefarer of Planet Y', async () => {
+      const response = await DELETE(active(PLANET_Y_SPACEFARER), as('xavier'))
+      assert.ok([403, 404].includes(response.status), `unexpected status ${response.status}`)
+
+      const stillThere = await GET(active(PLANET_Y_SPACEFARER), as('alice'))
+      assert.equal(stillThere.status, 200)
+    })
+  })
+
+  describe('viewer of Planet X writing without a draft', () => {
+    it('cannot create, update or delete a spacefarer', async () => {
+      const id = `/Spacefarers(ID=${PLANET_X_SPACEFARER},IsActiveEntity=true)`
+      assert.equal((await POST('/Spacefarers', { ...recruit('X'), IsActiveEntity: true }, as('xena'))).status, 403)
+      assert.equal((await PATCH(id, { spacesuitColor_code: 'COMET_WHITE' }, as('xena'))).status, 403)
+      assert.equal((await DELETE(id, as('xena'))).status, 403)
+    })
+  })
+
   describe('galactic admin', () => {
     it('sees the spacefarers of every planet', async () => {
       const response = await GET('/Spacefarers', as('alice'))
@@ -211,6 +258,60 @@ describe('SpacefarerService', () => {
       assert.equal(response.status, 200)
       assert.equal(response.data.department.name, 'Wormhole Navigation')
       assert.equal(response.data.originPlanet.name, 'Planet X')
+    })
+  })
+
+  describe('navigation from a spacefarer', () => {
+    const MASTER_DATA = ['originPlanet', 'spacesuitColor', 'department', 'position']
+    const spacefarer = (id: string) => `/Spacefarers(ID=${id},IsActiveEntity=true)`
+
+    for (const username of ['nobody', 'xena', 'xavier']) {
+      for (const association of MASTER_DATA) {
+        it(`does not reveal the ${association} of a Planet Y spacefarer to ${username}`, async () => {
+          const response = await GET(`${spacefarer(PLANET_Y_SPACEFARER)}/${association}`, as(username))
+          assert.ok([403, 404].includes(response.status), `unexpected status ${response.status}`)
+        })
+      }
+    }
+
+    it('does not reveal a property of the master data either', async () => {
+      const response = await GET(`${spacefarer(PLANET_Y_SPACEFARER)}/department/name`, as('xena'))
+      assert.ok([403, 404].includes(response.status), `unexpected status ${response.status}`)
+    })
+
+    it('does not reveal master data through the short key form', async () => {
+      const response = await GET(`/Spacefarers(${PLANET_Y_SPACEFARER})/department`, as('xena'))
+      assert.ok([403, 404].includes(response.status), `unexpected status ${response.status}`)
+    })
+
+    for (const association of MASTER_DATA) {
+      it(`still reaches the ${association} of a spacefarer the user may read`, async () => {
+        const response = await GET(`${spacefarer(PLANET_X_SPACEFARER)}/${association}`, as('xena'))
+        assert.equal(response.status, 200)
+      })
+    }
+
+    it('reaches master data of any spacefarer for the galactic admin', async () => {
+      const response = await GET(`${spacefarer(PLANET_Y_SPACEFARER)}/department`, as('alice'))
+      assert.equal(response.status, 200)
+    })
+
+    describe('of a draft', () => {
+      const draft = (id: string) => `/Spacefarers(ID=${id},IsActiveEntity=false)`
+
+      for (const path of ['DraftAdministrativeData', 'department']) {
+        it(`does not reveal ${path} to another user`, async () => {
+          await editDraft(PLANET_Y_SPACEFARER, 'yara')
+          const response = await GET(`${draft(PLANET_Y_SPACEFARER)}/${path}`, as('xena'))
+          assert.ok([403, 404].includes(response.status), `unexpected status ${response.status}`)
+        })
+
+        it(`shows ${path} to the owner of the draft`, async () => {
+          await editDraft(PLANET_Y_SPACEFARER, 'yara')
+          const response = await GET(`${draft(PLANET_Y_SPACEFARER)}/${path}`, as('yara'))
+          assert.equal(response.status, 200)
+        })
+      }
     })
   })
 

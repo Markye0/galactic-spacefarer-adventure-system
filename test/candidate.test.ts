@@ -15,8 +15,23 @@ describe('validateCandidate', () => {
 
   it('rejects negative stardust', () => {
     assert.deepEqual(validateCandidate({ stardustCollection: -1 }), [
-      { target: 'stardustCollection', message: 'Stardust collection must be 0 or more.' },
+      { target: 'stardustCollection', message: 'Stardust collection must be a whole number between 0 and 1,000,000,000.' },
     ])
+  })
+
+  it('accepts the stardust limits 0 and 1,000,000,000', () => {
+    assert.deepEqual(validateCandidate({ stardustCollection: 0 }), [])
+    assert.deepEqual(validateCandidate({ stardustCollection: 1_000_000_000 }), [])
+  })
+
+  it('rejects stardust above 1,000,000,000', () => {
+    assert.deepEqual(targets({ stardustCollection: 1_000_000_001 }), ['stardustCollection'])
+  })
+
+  it('keeps an enhanced collection within the 32-bit integer range', () => {
+    const candidate = { stardustCollection: 1_000_000_000, wormholeNavigationSkill: 1 }
+    enhanceCandidate(candidate)
+    assert.ok(candidate.stardustCollection <= 2_147_483_647)
   })
 
   it('accepts the wormhole navigation skill limits 1 and 10', () => {
@@ -27,7 +42,7 @@ describe('validateCandidate', () => {
   for (const skill of [0, 11]) {
     it(`rejects wormhole navigation skill ${skill}`, () => {
       assert.deepEqual(validateCandidate({ wormholeNavigationSkill: skill }), [
-        { target: 'wormholeNavigationSkill', message: 'Wormhole navigation skill must be between 1 and 10.' },
+        { target: 'wormholeNavigationSkill', message: 'Wormhole navigation skill must be a whole number between 1 and 10.' },
       ])
     })
   }

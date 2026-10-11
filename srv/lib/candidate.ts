@@ -1,5 +1,7 @@
 export const STARTER_STARDUST = 100
 export const TALENT_THRESHOLD = 1000
+// Leaves room for the starter pack within the 32-bit integer the collection is stored as
+export const MAX_STARDUST = 1_000_000_000
 export const MIN_SKILL = 1
 export const MAX_SKILL = 10
 
@@ -23,20 +25,23 @@ export function validateCandidate({ email, stardustCollection, wormholeNavigatio
   if (typeof email === 'string' && !EMAIL.test(email)) {
     errors.push({ target: 'email', message: 'Enter a valid email address.' })
   }
-  if (stardustCollection !== undefined && !(Number.isInteger(stardustCollection) && stardustCollection! >= 0)) {
-    errors.push({ target: 'stardustCollection', message: 'Stardust collection must be 0 or more.' })
+  if (stardustCollection !== undefined && !isWholeNumberBetween(stardustCollection, 0, MAX_STARDUST)) {
+    errors.push({
+      target: 'stardustCollection',
+      message: `Stardust collection must be a whole number between 0 and ${MAX_STARDUST.toLocaleString('en-US')}.`,
+    })
   }
-  if (wormholeNavigationSkill !== undefined && !isSkillLevel(wormholeNavigationSkill)) {
+  if (wormholeNavigationSkill !== undefined && !isWholeNumberBetween(wormholeNavigationSkill, MIN_SKILL, MAX_SKILL)) {
     errors.push({
       target: 'wormholeNavigationSkill',
-      message: `Wormhole navigation skill must be between ${MIN_SKILL} and ${MAX_SKILL}.`,
+      message: `Wormhole navigation skill must be a whole number between ${MIN_SKILL} and ${MAX_SKILL}.`,
     })
   }
   return errors
 }
 
-function isSkillLevel(value: number | null): boolean {
-  return Number.isInteger(value) && value! >= MIN_SKILL && value! <= MAX_SKILL
+function isWholeNumberBetween(value: number | null, min: number, max: number): boolean {
+  return Number.isInteger(value) && value! >= min && value! <= max
 }
 
 /** A new candidate without stardust or skill starts at 0 units and the lowest skill level. */

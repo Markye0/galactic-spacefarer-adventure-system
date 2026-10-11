@@ -45,7 +45,9 @@ describe('spacefarer list', () => {
     }
 
     it('cannot be set by a client', async () => {
-      await PATCH(`/Spacefarers(${SPACEFARER})`, { stardustStatus: 'Novice' }, as('alice'))
+      const response = await PATCH(`/Spacefarers(${SPACEFARER})`, { stardustStatus: 'Novice' }, as('alice'))
+      assert.equal(response.status, 200) // the derived field is ignored, not stored
+
       const { data } = await GET(`/Spacefarers(${SPACEFARER})`, as('alice'))
       assert.equal(data.stardustStatus, 'Master') // Nova Kepler has 1250 units
     })
