@@ -1,6 +1,6 @@
 export const STARTER_STARDUST = 100
 export const TALENT_THRESHOLD = 1000
-// Leaves room for the starter pack within the 32-bit integer the collection is stored as
+// The most stardust a spacefarer may have, entered or after the starter pack
 export const MAX_STARDUST = 1_000_000_000
 export const MIN_SKILL = 1
 export const MAX_SKILL = 10
@@ -65,12 +65,19 @@ export function enhanceCandidate(candidate: CandidateData): Bonuses {
   const skill = candidate.wormholeNavigationSkill ?? MIN_SKILL
   const raisedSkill = stardust >= TALENT_THRESHOLD ? Math.min(skill + 1, MAX_SKILL) : skill
 
+  // The starter pack never lifts the collection above the maximum, or the stored value would
+  // fail the validation of every later update
+  const starterStardust = Math.min(STARTER_STARDUST, MAX_STARDUST - stardust)
+
   candidate.wormholeNavigationSkill = raisedSkill
-  candidate.stardustCollection = stardust + STARTER_STARDUST
-  return { starterStardust: STARTER_STARDUST, skillRaised: raisedSkill > skill }
+  candidate.stardustCollection = stardust + starterStardust
+  return { starterStardust, skillRaised: raisedSkill > skill }
 }
 
-export function describeBonuses({ starterStardust, skillRaised }: Bonuses): string {
+/** A sentence telling the user what was added, or nothing if no bonus was granted. */
+export function describeBonuses({ starterStardust, skillRaised }: Bonuses): string | undefined {
+  if (starterStardust === 0) return skillRaised ? 'The wormhole navigation skill was raised by one level.' : undefined
+
   const starterPack = `A ${starterStardust}-unit stardust starter pack was added to the collection`
   return skillRaised ? `${starterPack}, and the wormhole navigation skill was raised by one level.` : `${starterPack}.`
 }

@@ -137,6 +137,15 @@ describe('spacefarer drafts', () => {
       assert.equal(data.stardustCollection, 560)
     })
 
+    it('is still possible for a spacefarer created with the maximum stardust', async () => {
+      const created = await create(candidate({ stardustCollection: 1_000_000_000 }), 'xavier')
+      assert.equal(created.status, 201)
+
+      const saved = await update(created.data.ID, { name: 'Ada Nova' }, 'xavier')
+      assert.equal(saved.status, 200)
+      assert.equal(saved.data.name, 'Ada Nova')
+    })
+
     it('grants no bonus and shows no bonus message', async () => {
       const saved = await update(PLANET_X_SPACEFARER, { stardustCollection: 1200 }, 'xavier')
       assert.deepEqual(messagesOf(saved), [])

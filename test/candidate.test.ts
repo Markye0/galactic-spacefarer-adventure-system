@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { applyDefaults, enhanceCandidate, validateCandidate } from '../srv/lib/candidate.js'
+import { applyDefaults, describeBonuses, enhanceCandidate, validateCandidate } from '../srv/lib/candidate.js'
 
 describe('validateCandidate', () => {
   const targets = (data: Parameters<typeof validateCandidate>[0]) => validateCandidate(data).map(error => error.target)
@@ -26,12 +26,6 @@ describe('validateCandidate', () => {
 
   it('rejects stardust above 1,000,000,000', () => {
     assert.deepEqual(targets({ stardustCollection: 1_000_000_001 }), ['stardustCollection'])
-  })
-
-  it('keeps an enhanced collection within the 32-bit integer range', () => {
-    const candidate = { stardustCollection: 1_000_000_000, wormholeNavigationSkill: 1 }
-    enhanceCandidate(candidate)
-    assert.ok(candidate.stardustCollection <= 2_147_483_647)
   })
 
   it('accepts the wormhole navigation skill limits 1 and 10', () => {
@@ -105,6 +99,24 @@ describe('enhanceCandidate', () => {
     assert.deepEqual(enhance(950, 4), { stardustCollection: 1050, wormholeNavigationSkill: 4 })
   })
 
+  it('never lifts the collection above the maximum a spacefarer may have', () => {
+    const full = { stardustCollection: 1_000_000_000, wormholeNavigationSkill: 1 }
+    assert.deepEqual(enhanceCandidate(full), { starterStardust: 0, skillRaised: true })
+    assert.equal(full.stardustCollection, 1_000_000_000)
+
+    const nearlyFull = { stardustCollection: 999_999_950, wormholeNavigationSkill: 10 }
+    assert.deepEqual(enhanceCandidate(nearlyFull), { starterStardust: 50, skillRaised: false })
+    assert.equal(nearlyFull.stardustCollection, 1_000_000_000)
+  })
+
+  it('leaves every enhanced candidate valid', () => {
+    for (const stardustCollection of [0, 999, 1000, 999_999_950, 1_000_000_000]) {
+      const candidate = { stardustCollection, wormholeNavigationSkill: 10 }
+      enhanceCandidate(candidate)
+      assert.deepEqual(validateCandidate(candidate), [], `invalid after enhancing ${stardustCollection}`)
+    }
+  })
+
   it('reports which bonuses were granted', () => {
     assert.deepEqual(enhanceCandidate({ stardustCollection: 0, wormholeNavigationSkill: 1 }), { starterStardust: 100, skillRaised: false })
     assert.deepEqual(enhanceCandidate({ stardustCollection: 1000, wormholeNavigationSkill: 4 }), { starterStardust: 100, skillRaised: true })
@@ -113,5 +125,30 @@ describe('enhanceCandidate', () => {
 
   it('never raises the skill above 10', () => {
     assert.deepEqual(enhance(5000, 10), { stardustCollection: 5100, wormholeNavigationSkill: 10 })
+  })
+})
+
+describe('describeBonuses', () => {
+  it('mentions the starter pack', () => {
+    assert.equal(describeBonuses({ starterStardust: 100, skillRaised: false }), 'A 100-unit stardust starter pack was added to the collection.')
+  })
+
+  it('mentions the skill bonus as well', () => {
+    assert.equal(
+      describeBonuses({ starterStardust: 100, skillRaised: true }),
+      'A 100-unit stardust starter pack was added to the collection, and the wormhole navigation skill was raised by one level.',
+    )
+  })
+
+  it('mentions the size of a starter pack that was cut short by the maximum', () => {
+    assert.equal(describeBonuses({ starterStardust: 50, skillRaised: false }), 'A 50-unit stardust starter pack was added to the collection.')
+  })
+
+  it('mentions only the skill bonus when the collection was already full', () => {
+    assert.equal(describeBonuses({ starterStardust: 0, skillRaised: true }), 'The wormhole navigation skill was raised by one level.')
+  })
+
+  it('says nothing when no bonus was granted', () => {
+    assert.equal(describeBonuses({ starterStardust: 0, skillRaised: false }), undefined)
   })
 })

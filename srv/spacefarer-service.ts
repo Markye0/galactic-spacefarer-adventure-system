@@ -70,8 +70,8 @@ export default class SpacefarerService extends cds.ApplicationService {
     applyDefaults(req.data)
     if (!this.validate(req)) return
 
-    const bonuses = enhanceCandidate(req.data)
-    req.info(describeBonuses(bonuses))
+    const granted = describeBonuses(enhanceCandidate(req.data))
+    if (granted) req.info(granted)
   }
 
   /** Records one error per invalid field, so the client receives all of them at once. */
