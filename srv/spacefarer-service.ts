@@ -1,10 +1,13 @@
 import cds from '@sap/cds'
 import { CurrentUser, Spacefarer, Spacefarers } from '#cds-models/SpacefarerService'
-import { applyDefaults, describeBonuses, enhanceCandidate, validateCandidate } from './lib/candidate.js'
+import { applyDefaults, describeBonuses, enhanceCandidate, validateCandidate, type Bonuses } from './lib/candidate.js'
 import { mailer } from './lib/mailer.js'
+import { readOriginPlanet } from './lib/origin-planet.js'
 import { buildWelcomeEmail, type NewSpacefarer } from './lib/welcome-email.js'
 
 const LOG = cds.log('spacefarers')
+
+type StoredSpacefarer = Omit<NewSpacefarer, 'starterStardust'>
 
 /**
  * The planets a user is bound to. Mocked users carry a single value; XSUAA and IAS deliver
@@ -12,17 +15,19 @@ const LOG = cds.log('spacefarers')
  */
 function planetsOf(user: cds.User): string[] {
   const planet: string | string[] | undefined = user.attr.planet
-  return planet === undefined ? [] : [planet].flat()
+  return planet === undefined ? [] : [...new Set([planet].flat())]
 }
 
 export default class SpacefarerService extends cds.ApplicationService {
+  /** Bonuses granted while preparing a candidate, kept until the creation has succeeded. */
+  private readonly grantedBonuses = new WeakMap<cds.Request, Bonuses>()
+
   init() {
     this.before('READ', '*', req => this.authorizeNavigation(req))
-    this.before(['CREATE', 'UPDATE'], Spacefarers, req => this.rejectForeignPlanet(req))
     this.before('NEW', Spacefarers.drafts, req => this.prefillOriginPlanet(req))
     this.before('CREATE', Spacefarers, req => this.prepareCandidate(req))
-    this.before('UPDATE', Spacefarers, req => this.validate(req))
-    this.after('CREATE', Spacefarers, (_, req) => this.sendWelcomeEmail(req))
+    this.before('UPDATE', Spacefarers, req => this.checkUpdate(req))
+    this.after('CREATE', Spacefarers, (_, req) => this.announceLaunch(req))
     this.on('READ', CurrentUser, req => this.describeCurrentUser(req))
     return super.init()
   }
@@ -44,14 +49,24 @@ export default class SpacefarerService extends cds.ApplicationService {
 
   /**
    * The `where` conditions of @restrict filter existing records only. This closes the gap for
-   * incoming data: nobody but a galactic admin may create a spacefarer on, or move one to,
-   * a planet other than their own.
+   * incoming data. Whenever a request carries an origin planet, in either of its two forms, it
+   * has to name one, and nobody but a galactic admin may create a spacefarer on, or move one
+   * to, a planet other than their own.
    */
-  private rejectForeignPlanet(req: cds.Request<Spacefarer>) {
-    if (req.user.is('GalacticAdmin')) return
+  private checkOriginPlanet(req: cds.Request<Spacefarer>) {
+    const origin = readOriginPlanet(req.data)
+    if (!origin.given) return
 
-    const planet = req.data.originPlanet_code ?? req.data.originPlanet?.code
-    if (planet && !planetsOf(req.user).includes(planet)) {
+    if ('problem' in origin) {
+      const message = origin.problem === 'missing' ? 'An origin planet is required.' : 'The origin planet is given twice, with different values.'
+      return req.reject(400, message, 'originPlanet_code')
+    }
+
+    // Continue with one form only, so nothing downstream can read the two differently
+    delete req.data.originPlanet
+    req.data.originPlanet_code = origin.planet
+
+    if (!req.user.is('GalacticAdmin') && !planetsOf(req.user).includes(origin.planet)) {
       req.reject(403, 'You can only manage spacefarers of your own planet.')
     }
   }
@@ -63,25 +78,31 @@ export default class SpacefarerService extends cds.ApplicationService {
   }
 
   private describeCurrentUser({ user }: cds.Request) {
-    const canManageSpacefarers = user.is('GalacticAdmin') || user.is('SpacefarerManager')
+    const isAdmin = user.is('GalacticAdmin')
+    const planets = planetsOf(user)
     return {
       id: user.id,
-      canManageSpacefarers,
+      // A manager who is not bound to any planet has no spacefarers to manage
+      canManageSpacefarers: isAdmin || (user.is('SpacefarerManager') && planets.length > 0),
       // With exactly one planet there is nothing to choose: it is prefilled and locked
-      canChoosePlanet: canManageSpacefarers && planetsOf(user).length !== 1,
+      canChoosePlanet: isAdmin || (user.is('SpacefarerManager') && planets.length > 1),
     }
   }
 
   /**
    * Validates a new candidate and, if valid, enhances their stardust collection and skill.
-   * The saved values differ from the entered ones, so the user is told what was added.
+   * The checks run one after the other in a single handler: separate `before` handlers for
+   * the same event are not guaranteed to run in sequence.
    */
   private prepareCandidate(req: cds.Request<Spacefarer>) {
+    this.checkOriginPlanet(req)
     applyDefaults(req.data)
-    if (!this.validate(req)) return
+    if (this.validate(req)) this.grantedBonuses.set(req, enhanceCandidate(req.data))
+  }
 
-    const granted = describeBonuses(enhanceCandidate(req.data))
-    if (granted) req.info(granted)
+  private checkUpdate(req: cds.Request<Spacefarer>) {
+    this.checkOriginPlanet(req)
+    this.validate(req)
   }
 
   /** Records one error per invalid field, so the client receives all of them at once. */
@@ -92,13 +113,26 @@ export default class SpacefarerService extends cds.ApplicationService {
   }
 
   /**
+   * Runs once the spacefarer has been created. The saved values differ from the entered ones,
+   * so the user is told what was added, and the spacefarer is sent a welcome email.
+   */
+  private announceLaunch(req: cds.Request<Spacefarer>) {
+    const bonuses = this.grantedBonuses.get(req)
+    if (!bonuses) return
+
+    const granted = describeBonuses(bonuses)
+    if (granted) req.info(granted)
+
+    // req.data holds the candidate as stored, including the enhanced values
+    this.sendWelcomeEmail(req, { ...(req.data as StoredSpacefarer), starterStardust: bonuses.starterStardust })
+  }
+
+  /**
    * Sends the email only after the transaction has committed, so nobody is congratulated on a
    * creation that was rolled back. Sending runs in the background: the user does not wait for
    * the mail server, and a failed email is logged without affecting the spacefarer.
    */
-  private sendWelcomeEmail(req: cds.Request<Spacefarer>) {
-    // req.data holds the candidate as stored, including the enhanced values
-    const spacefarer = req.data as NewSpacefarer
+  private sendWelcomeEmail(req: cds.Request, spacefarer: NewSpacefarer) {
     req.on('succeeded', () => {
       // Started from a promise chain, so that not even a synchronous error reaches the request
       Promise.resolve()

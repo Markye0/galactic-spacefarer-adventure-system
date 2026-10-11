@@ -8,6 +8,10 @@ const users = cds.env.requires.auth.users as Record<string, unknown>
 users.xander = { password: 'pass', roles: ['SpacefarerManager'], attr: { planet: ['X'] } }
 users.xyla = { password: 'pass', roles: ['SpacefarerManager'], attr: { planet: ['X', 'Y'] } }
 
+users.xenon = { password: 'pass', roles: ['SpacefarerManager'], attr: { planet: ['X', 'X'] } }
+users.xeno = { password: 'pass', roles: ['SpacefarerManager'], attr: { planet: [] } }
+users.xia = { password: 'pass', roles: ['SpacefarerManager'] }
+
 const test = cds.test(import.meta.dirname + '/..')
 const { GET, axios } = test
 const { newDraft, create, update } = spacefarerDrafts(test)
@@ -63,5 +67,30 @@ describe('planet attribute delivered as a list', () => {
       const draft = await newDraft(candidate(), 'xyla')
       assert.equal(draft.data.originPlanet_code, null)
     })
+  })
+
+  describe('with the same planet listed twice', () => {
+    it('treats it as one planet', async () => {
+      const draft = await newDraft(candidate(), 'xenon')
+      assert.equal(draft.data.originPlanet_code, 'X')
+
+      const { data } = await GET('/CurrentUser', as('xenon'))
+      assert.equal(data.canChoosePlanet, false)
+    })
+  })
+
+  describe('a manager without any planet', () => {
+    for (const username of ['xeno', 'xia']) {
+      it(`is not offered to manage spacefarers (${username})`, async () => {
+        const { data } = await GET('/CurrentUser', as(username))
+        assert.equal(data.canManageSpacefarers, false)
+        assert.equal(data.canChoosePlanet, false)
+      })
+
+      it(`cannot create a spacefarer (${username})`, async () => {
+        const response = await create(candidate({ originPlanet_code: 'X' }), username)
+        assert.equal(response.status, 403)
+      })
+    }
   })
 })

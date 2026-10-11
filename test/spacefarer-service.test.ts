@@ -192,6 +192,64 @@ describe('SpacefarerService', () => {
     })
   })
 
+  // The planet can be sent as originPlanet_code or as a nested originPlanet object. Both forms
+  // have to name a planet: a spacefarer without one would be invisible to everyone but admins.
+  describe('origin planet in every form a request can take', () => {
+    const active = (id: string) => `/Spacefarers(ID=${id},IsActiveEntity=true)`
+    const activeCount = async () => (await GET('/Spacefarers/$count?$filter=IsActiveEntity eq true', as('alice'))).data
+    const planetOf = async (id: string) => (await GET(active(id), as('alice'))).data.originPlanet_code
+
+    const withoutPlanet: Record<string, Record<string, unknown>> = {
+      'a nested null planet': { originPlanet: null },
+      'a null planet code': { originPlanet_code: null },
+      'an empty planet code': { originPlanet_code: '' },
+      'a nested planet without a code': { originPlanet: { code: null } },
+      'a planet code overridden by a nested null': { originPlanet_code: 'X', originPlanet: null },
+    }
+
+    for (const username of ['xavier', 'alice']) {
+      for (const [description, planet] of Object.entries(withoutPlanet)) {
+        it(`rejects creating a spacefarer with ${description} (${username})`, async () => {
+          const body = { name: 'Ghost', email: 'ghost@spacefarers.example', ...planet, IsActiveEntity: true }
+          const response = await POST('/Spacefarers', body, as(username))
+
+          assert.equal(response.status, 400)
+          assert.equal(await activeCount(), 80)
+        })
+
+        it(`rejects updating a spacefarer with ${description} (${username})`, async () => {
+          const response = await PATCH(active(PLANET_X_SPACEFARER), planet, as(username))
+
+          assert.equal(response.status, 400)
+          assert.equal(await planetOf(PLANET_X_SPACEFARER), 'X')
+        })
+      }
+    }
+
+    it('does not let a manager slip in a foreign planet through the second form', async () => {
+      const body = { ...recruit('X'), originPlanet: { code: 'Y' }, IsActiveEntity: true }
+      const response = await POST('/Spacefarers', body, as('xavier'))
+
+      assert.ok([400, 403].includes(response.status), `unexpected status ${response.status}`)
+      assert.equal(await activeCount(), 80)
+    })
+
+    it('never stores a spacefarer without a planet when the two forms disagree', async () => {
+      const body = { ...recruit('X'), originPlanet: { code: 'Y' }, IsActiveEntity: true }
+      const response = await POST('/Spacefarers', body, as('alice'))
+
+      if (response.status === 201) assert.ok(['X', 'Y'].includes(response.data.originPlanet_code))
+      else assert.equal(response.status, 400)
+    })
+
+    it('accepts two forms that name the same planet', async () => {
+      const body = { ...recruit('X'), originPlanet: { code: 'X' }, IsActiveEntity: true }
+      const response = await POST('/Spacefarers', body, as('xavier'))
+      assert.equal(response.status, 201)
+      assert.equal(response.data.originPlanet_code, 'X')
+    })
+  })
+
   describe('viewer of Planet X writing without a draft', () => {
     it('cannot create, update or delete a spacefarer', async () => {
       const id = `/Spacefarers(ID=${PLANET_X_SPACEFARER},IsActiveEntity=true)`

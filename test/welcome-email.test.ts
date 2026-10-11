@@ -8,6 +8,7 @@ describe('buildWelcomeEmail', () => {
     email: 'ada.starling@spacefarers.example',
     stardustCollection: 350,
     wormholeNavigationSkill: 4,
+    starterStardust: 100,
   })
 
   it('addresses the new spacefarer', () => {
@@ -33,5 +34,20 @@ describe('buildWelcomeEmail', () => {
         'Galactic Spacefarer Adventure System',
       ].join('\n'),
     )
+  })
+
+  describe('when the starter pack was limited by the maximum collection', () => {
+    const full = { name: 'Ada Starling', email: 'ada.starling@spacefarers.example', stardustCollection: 1_000_000_000, wormholeNavigationSkill: 4 }
+
+    it('states the size of the pack that was granted', () => {
+      const { text } = buildWelcomeEmail({ ...full, starterStardust: 50 })
+      assert.match(text, /^ {2}- Stardust collection: 1000000000 units \(including a 50-unit starter pack\)$/m)
+    })
+
+    it('does not mention a starter pack when none was granted', () => {
+      const { text } = buildWelcomeEmail({ ...full, starterStardust: 0 })
+      assert.match(text, /^ {2}- Stardust collection: 1000000000 units$/m)
+      assert.doesNotMatch(text, /starter pack/)
+    })
   })
 })

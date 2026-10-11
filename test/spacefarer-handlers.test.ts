@@ -180,6 +180,13 @@ describe('spacefarer event handlers', () => {
       assert.match(mail.text, /level 5 of 10/)
     })
 
+    it('states the starter pack that was actually granted', async () => {
+      await create(candidate({ stardustCollection: 999_999_950 }), 'alice')
+      await afterCommit()
+
+      assert.match(sentMails()[0].text, /1000000000 units \(including a 50-unit starter pack\)/)
+    })
+
     it('sends nothing when the candidate is invalid', async () => {
       await create(candidate({ stardustCollection: -1 }), 'alice')
       await afterCommit()
