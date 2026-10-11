@@ -6,6 +6,15 @@ import { buildWelcomeEmail, type NewSpacefarer } from './lib/welcome-email.js'
 
 const LOG = cds.log('spacefarers')
 
+/**
+ * The planets a user is bound to. Mocked users carry a single value; XSUAA and IAS deliver
+ * attributes as lists, also when there is only one value.
+ */
+function planetsOf(user: cds.User): string[] {
+  const planet: string | string[] | undefined = user.attr.planet
+  return planet === undefined ? [] : [planet].flat()
+}
+
 export default class SpacefarerService extends cds.ApplicationService {
   init() {
     this.before('READ', '*', req => this.authorizeNavigation(req))
@@ -42,23 +51,24 @@ export default class SpacefarerService extends cds.ApplicationService {
     if (req.user.is('GalacticAdmin')) return
 
     const planet = req.data.originPlanet_code ?? req.data.originPlanet?.code
-    if (planet && planet !== req.user.attr.planet) {
+    if (planet && !planetsOf(req.user).includes(planet)) {
       req.reject(403, 'You can only manage spacefarers of your own planet.')
     }
   }
 
-  /** A new spacefarer starts on the planet of the user creating it; a galactic admin has none. */
+  /** A new spacefarer starts on the planet of the user creating it, if the user has exactly one. */
   private prefillOriginPlanet(req: cds.Request<Spacefarer>) {
-    const { planet } = req.user.attr
-    if (planet) req.data.originPlanet_code ??= planet
+    const planets = planetsOf(req.user)
+    if (planets.length === 1) req.data.originPlanet_code ??= planets[0]
   }
 
   private describeCurrentUser({ user }: cds.Request) {
-    const isAdmin = user.is('GalacticAdmin')
+    const canManageSpacefarers = user.is('GalacticAdmin') || user.is('SpacefarerManager')
     return {
       id: user.id,
-      canManageSpacefarers: isAdmin || user.is('SpacefarerManager'),
-      canChoosePlanet: isAdmin,
+      canManageSpacefarers,
+      // With exactly one planet there is nothing to choose: it is prefilled and locked
+      canChoosePlanet: canManageSpacefarers && planetsOf(user).length !== 1,
     }
   }
 
