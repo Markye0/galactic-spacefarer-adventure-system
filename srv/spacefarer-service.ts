@@ -1,6 +1,6 @@
 import cds from '@sap/cds'
 import { CurrentUser, Spacefarer, Spacefarers } from '#cds-models/SpacefarerService'
-import { applyDefaults, describeBonuses, enhanceCandidate, validateCandidate } from './lib/candidate.js'
+import { applyDefaults, describeBonuses, enhanceCandidate, validateCandidate, type Bonuses } from './lib/candidate.js'
 import { mailer } from './lib/mailer.js'
 import { readOriginPlanet } from './lib/origin-planet.js'
 import { buildWelcomeEmail, type NewSpacefarer } from './lib/welcome-email.js'
@@ -17,12 +17,15 @@ function planetsOf(user: cds.User): string[] {
 }
 
 export default class SpacefarerService extends cds.ApplicationService {
+  /** Bonuses granted while preparing a candidate, kept until the creation has succeeded. */
+  private readonly grantedBonuses = new WeakMap<cds.Request, Bonuses>()
+
   init() {
     this.before('READ', '*', req => this.authorizeNavigation(req))
     this.before('NEW', Spacefarers.drafts, req => this.prefillOriginPlanet(req))
     this.before('CREATE', Spacefarers, req => this.prepareCandidate(req))
     this.before('UPDATE', Spacefarers, req => this.checkUpdate(req))
-    this.after('CREATE', Spacefarers, (_, req) => this.sendWelcomeEmail(req, req.data as NewSpacefarer))
+    this.after('CREATE', Spacefarers, (_, req) => this.announceLaunch(req))
     this.on('READ', CurrentUser, req => this.describeCurrentUser(req))
     return super.init()
   }
@@ -92,10 +95,7 @@ export default class SpacefarerService extends cds.ApplicationService {
   private prepareCandidate(req: cds.Request<Spacefarer>) {
     this.checkOriginPlanet(req)
     applyDefaults(req.data)
-    if (!this.validate(req)) return
-
-    const granted = describeBonuses(enhanceCandidate(req.data))
-    if (granted) req.info(granted)
+    if (this.validate(req)) this.grantedBonuses.set(req, enhanceCandidate(req.data))
   }
 
   private checkUpdate(req: cds.Request<Spacefarer>) {
@@ -108,6 +108,21 @@ export default class SpacefarerService extends cds.ApplicationService {
     const errors = validateCandidate(req.data)
     for (const { target, message } of errors) req.error(400, message, target)
     return errors.length === 0
+  }
+
+  /**
+   * Runs once the spacefarer has been created. The saved values differ from the entered ones,
+   * so the user is told what was added, and the spacefarer is sent a welcome email.
+   */
+  private announceLaunch(req: cds.Request<Spacefarer>) {
+    const bonuses = this.grantedBonuses.get(req)
+    if (!bonuses) return
+
+    const granted = describeBonuses(bonuses)
+    if (granted) req.info(granted)
+
+    // req.data holds the candidate as stored, including the enhanced values
+    this.sendWelcomeEmail(req, req.data as NewSpacefarer)
   }
 
   /**

@@ -71,6 +71,18 @@ describe('spacefarer drafts', () => {
       ])
     })
 
+    it('reports no bonus when the spacefarer is rejected for another planet', async () => {
+      const rejected = await create(candidate({ originPlanet_code: 'Y' }), 'xavier')
+      assert.equal(rejected.status, 403)
+      assert.deepEqual(messagesOf(rejected), [])
+    })
+
+    it('reports no bonus when the spacefarer refers to unknown master data', async () => {
+      const rejected = await create(candidate({ department_ID: 'ffffffff-ffff-4fff-8fff-ffffffffffff' }), 'xavier')
+      assert.equal(rejected.status, 400)
+      assert.deepEqual(messagesOf(rejected), [])
+    })
+
     it('does not save an invalid draft', async () => {
       const draft = await newDraft(candidate({ stardustCollection: -1 }), 'xavier')
       const saved = await activate(draft.data.ID, 'xavier')
