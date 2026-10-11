@@ -46,7 +46,7 @@ describe('spacefarer event handlers', () => {
       const response = await create(candidate({ stardustCollection: -1 }), 'alice')
       assert.equal(response.status, 400)
       assert.deepEqual(errorsOf(response).map(({ target, message }) => ({ target, message })), [
-        { target: 'stardustCollection', message: 'Stardust collection must be 0 or more.' },
+        { target: 'stardustCollection', message: 'Stardust collection must be a whole number between 0 and 1,000,000,000.' },
       ])
     })
 
