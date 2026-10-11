@@ -143,7 +143,8 @@
           "options": {
             "settings": {
               "editableHeaderContent": false,
-              "contextPath": "/Spacefarers"
+              "contextPath": "/Spacefarers",
+              "enhanceI18n": "i18n/i18n.properties"
             }
           }
         }
