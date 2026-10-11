@@ -1,5 +1,5 @@
 import cds from '@sap/cds'
-import { Spacefarer, Spacefarers } from '#cds-models/SpacefarerService'
+import { CurrentUser, Spacefarer, Spacefarers } from '#cds-models/SpacefarerService'
 import { applyDefaults, enhanceCandidate, validateCandidate } from './lib/candidate.js'
 import { mailer } from './lib/mailer.js'
 import { buildWelcomeEmail, type NewSpacefarer } from './lib/welcome-email.js'
@@ -12,6 +12,7 @@ export default class SpacefarerService extends cds.ApplicationService {
     this.before('CREATE', Spacefarers, req => this.prepareCandidate(req))
     this.before('UPDATE', Spacefarers, req => this.validate(req))
     this.after('CREATE', Spacefarers, (_, req) => this.sendWelcomeEmail(req))
+    this.on('READ', CurrentUser, req => this.describeCurrentUser(req))
     return super.init()
   }
 
@@ -26,6 +27,15 @@ export default class SpacefarerService extends cds.ApplicationService {
     const planet = req.data.originPlanet_code ?? req.data.originPlanet?.code
     if (planet && planet !== req.user.attr.planet) {
       req.reject(403, 'You can only manage spacefarers of your own planet.')
+    }
+  }
+
+  private describeCurrentUser({ user }: cds.Request) {
+    const isAdmin = user.is('GalacticAdmin')
+    return {
+      id: user.id,
+      canManageSpacefarers: isAdmin || user.is('SpacefarerManager'),
+      canChoosePlanet: isAdmin,
     }
   }
 

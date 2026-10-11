@@ -124,6 +124,13 @@ describe('object page annotations', () => {
     assert.equal(spacefarers['@UI.DataPoint#WormholeNavigationSkill.TargetValue'], 10)
   })
 
+  it('offers create, edit and delete only to users who can manage spacefarers', () => {
+    // hidden = not canManageSpacefarers
+    for (const annotation of ['@UI.CreateHidden', '@UI.UpdateHidden', '@UI.DeleteHidden']) {
+      assert.equal(spacefarers[`${annotation}.$edmJson.$Not.$Path`], '/CurrentUser/canManageSpacefarers')
+    }
+  })
+
   it('does not let the derived stardust status be edited', () => {
     const elements = (spacefarers as { elements: Record<string, Annotated> }).elements
     assert.equal(elements.stardustStatus['@Core.Computed'], true)

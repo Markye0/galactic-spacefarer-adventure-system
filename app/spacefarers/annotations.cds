@@ -108,3 +108,11 @@ annotate service.Spacefarers with @(
 annotate service.Spacefarers with {
   stardustStatus @Core.Computed;
 };
+
+// Create, edit and delete are offered only to users who can manage spacefarers. This is a
+// convenience for the UI; the service enforces the authorization on its own.
+annotate service.Spacefarers with @(
+  UI.CreateHidden: { $edmJson: { $Not: { $Path: '/CurrentUser/canManageSpacefarers' } } },
+  UI.UpdateHidden: { $edmJson: { $Not: { $Path: '/CurrentUser/canManageSpacefarers' } } },
+  UI.DeleteHidden: { $edmJson: { $Not: { $Path: '/CurrentUser/canManageSpacefarers' } } },
+);
