@@ -187,6 +187,32 @@ describe('SpacefarerService', () => {
     })
   })
 
+  describe('navigation from master data', () => {
+    const IDS = {
+      Departments: 'd0000000-0000-4000-8000-000000000001',
+      Positions: 'b0000000-0000-4000-8000-000000000001',
+    }
+
+    for (const [entity, id] of Object.entries(IDS)) {
+      it(`does not expand spacefarers from ${entity}`, async () => {
+        const response = await GET(`/${entity}?$expand=spacefarers`, as('alice'))
+        assert.equal(response.status, 400)
+      })
+
+      it(`does not navigate to spacefarers from ${entity}`, async () => {
+        const response = await GET(`/${entity}(${id})/spacefarers`, as('alice'))
+        assert.ok(response.status >= 400, `unexpected status ${response.status}`)
+      })
+    }
+
+    it('still expands master data from a spacefarer', async () => {
+      const response = await GET(`/Spacefarers(${PLANET_X_SPACEFARER})?$expand=department,position,originPlanet,spacesuitColor`, as('xena'))
+      assert.equal(response.status, 200)
+      assert.equal(response.data.department.name, 'Wormhole Navigation')
+      assert.equal(response.data.originPlanet.name, 'Planet X')
+    })
+  })
+
   describe('mandatory fields', () => {
     for (const field of ['name', 'email', 'originPlanet_code']) {
       it(`rejects a spacefarer without ${field}`, async () => {
