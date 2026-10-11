@@ -22,7 +22,7 @@ service SpacefarerService @(requires: 'authenticated-user') {
     end as stardustStatusCriticality : Integer
   };
 
-  annotate Spacefarers with @cds.search: { name, email };
+  annotate Spacefarers with @cds.search: { name, email } @odata.draft.enabled;
 
   // The backlinks to spacefarers are left out: $expand does not apply the planet restriction
   @readonly entity Departments     as projection on db.Departments excluding { spacefarers };
