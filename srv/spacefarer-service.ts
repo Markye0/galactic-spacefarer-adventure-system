@@ -2,6 +2,7 @@ import cds from '@sap/cds'
 import { CurrentUser, Spacefarer, Spacefarers } from '#cds-models/SpacefarerService'
 import { applyDefaults, describeBonuses, enhanceCandidate, validateCandidate } from './lib/candidate.js'
 import { mailer } from './lib/mailer.js'
+import { readOriginPlanet } from './lib/origin-planet.js'
 import { buildWelcomeEmail, type NewSpacefarer } from './lib/welcome-email.js'
 
 const LOG = cds.log('spacefarers')
@@ -18,11 +19,10 @@ function planetsOf(user: cds.User): string[] {
 export default class SpacefarerService extends cds.ApplicationService {
   init() {
     this.before('READ', '*', req => this.authorizeNavigation(req))
-    this.before(['CREATE', 'UPDATE'], Spacefarers, req => this.rejectForeignPlanet(req))
     this.before('NEW', Spacefarers.drafts, req => this.prefillOriginPlanet(req))
     this.before('CREATE', Spacefarers, req => this.prepareCandidate(req))
-    this.before('UPDATE', Spacefarers, req => this.validate(req))
-    this.after('CREATE', Spacefarers, (_, req) => this.sendWelcomeEmail(req))
+    this.before('UPDATE', Spacefarers, req => this.checkUpdate(req))
+    this.after('CREATE', Spacefarers, (_, req) => this.sendWelcomeEmail(req, req.data as NewSpacefarer))
     this.on('READ', CurrentUser, req => this.describeCurrentUser(req))
     return super.init()
   }
@@ -44,14 +44,24 @@ export default class SpacefarerService extends cds.ApplicationService {
 
   /**
    * The `where` conditions of @restrict filter existing records only. This closes the gap for
-   * incoming data: nobody but a galactic admin may create a spacefarer on, or move one to,
-   * a planet other than their own.
+   * incoming data. Whenever a request carries an origin planet, in either of its two forms, it
+   * has to name one, and nobody but a galactic admin may create a spacefarer on, or move one
+   * to, a planet other than their own.
    */
-  private rejectForeignPlanet(req: cds.Request<Spacefarer>) {
-    if (req.user.is('GalacticAdmin')) return
+  private checkOriginPlanet(req: cds.Request<Spacefarer>) {
+    const origin = readOriginPlanet(req.data)
+    if (!origin.given) return
 
-    const planet = req.data.originPlanet_code ?? req.data.originPlanet?.code
-    if (planet && !planetsOf(req.user).includes(planet)) {
+    if ('problem' in origin) {
+      const message = origin.problem === 'missing' ? 'An origin planet is required.' : 'The origin planet is given twice, with different values.'
+      return req.reject(400, message, 'originPlanet_code')
+    }
+
+    // Continue with one form only, so nothing downstream can read the two differently
+    delete req.data.originPlanet
+    req.data.originPlanet_code = origin.planet
+
+    if (!req.user.is('GalacticAdmin') && !planetsOf(req.user).includes(origin.planet)) {
       req.reject(403, 'You can only manage spacefarers of your own planet.')
     }
   }
@@ -76,14 +86,21 @@ export default class SpacefarerService extends cds.ApplicationService {
 
   /**
    * Validates a new candidate and, if valid, enhances their stardust collection and skill.
-   * The saved values differ from the entered ones, so the user is told what was added.
+   * The checks run one after the other in a single handler: separate `before` handlers for
+   * the same event are not guaranteed to run in sequence.
    */
   private prepareCandidate(req: cds.Request<Spacefarer>) {
+    this.checkOriginPlanet(req)
     applyDefaults(req.data)
     if (!this.validate(req)) return
 
     const granted = describeBonuses(enhanceCandidate(req.data))
     if (granted) req.info(granted)
+  }
+
+  private checkUpdate(req: cds.Request<Spacefarer>) {
+    this.checkOriginPlanet(req)
+    this.validate(req)
   }
 
   /** Records one error per invalid field, so the client receives all of them at once. */
@@ -98,9 +115,7 @@ export default class SpacefarerService extends cds.ApplicationService {
    * creation that was rolled back. Sending runs in the background: the user does not wait for
    * the mail server, and a failed email is logged without affecting the spacefarer.
    */
-  private sendWelcomeEmail(req: cds.Request<Spacefarer>) {
-    // req.data holds the candidate as stored, including the enhanced values
-    const spacefarer = req.data as NewSpacefarer
+  private sendWelcomeEmail(req: cds.Request, spacefarer: NewSpacefarer) {
     req.on('succeeded', () => {
       // Started from a promise chain, so that not even a synchronous error reaches the request
       Promise.resolve()
