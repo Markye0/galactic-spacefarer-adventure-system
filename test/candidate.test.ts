@@ -6,7 +6,10 @@ describe('validateCandidate', () => {
   const targets = (data: Parameters<typeof validateCandidate>[0]) => validateCandidate(data).map(error => error.target)
 
   it('accepts a valid candidate', () => {
-    assert.deepEqual(validateCandidate({ email: 'nova@spacefarers.example', stardustCollection: 0, wormholeNavigationSkill: 1 }), [])
+    assert.deepEqual(
+      validateCandidate({ email: 'nova@spacefarers.example', stardustCollection: 0, wormholeNavigationSkill: 1 }),
+      [],
+    )
   })
 
   it('ignores fields that are not provided', () => {
@@ -15,7 +18,10 @@ describe('validateCandidate', () => {
 
   it('rejects negative stardust', () => {
     assert.deepEqual(validateCandidate({ stardustCollection: -1 }), [
-      { target: 'stardustCollection', message: 'Stardust collection must be a whole number between 0 and 1,000,000,000.' },
+      {
+        target: 'stardustCollection',
+        message: 'Stardust collection must be a whole number between 0 and 1,000,000,000.',
+      },
     ])
   })
 
@@ -36,17 +42,32 @@ describe('validateCandidate', () => {
   for (const skill of [0, 11]) {
     it(`rejects wormhole navigation skill ${skill}`, () => {
       assert.deepEqual(validateCandidate({ wormholeNavigationSkill: skill }), [
-        { target: 'wormholeNavigationSkill', message: 'Wormhole navigation skill must be a whole number between 1 and 10.' },
+        {
+          target: 'wormholeNavigationSkill',
+          message: 'Wormhole navigation skill must be a whole number between 1 and 10.',
+        },
       ])
     })
   }
 
   it('rejects fractional and empty numbers', () => {
-    assert.deepEqual(targets({ stardustCollection: 1.5, wormholeNavigationSkill: 2.5 }), ['stardustCollection', 'wormholeNavigationSkill'])
-    assert.deepEqual(targets({ stardustCollection: null, wormholeNavigationSkill: null }), ['stardustCollection', 'wormholeNavigationSkill'])
+    assert.deepEqual(targets({ stardustCollection: 1.5, wormholeNavigationSkill: 2.5 }), [
+      'stardustCollection',
+      'wormholeNavigationSkill',
+    ])
+    assert.deepEqual(targets({ stardustCollection: null, wormholeNavigationSkill: null }), [
+      'stardustCollection',
+      'wormholeNavigationSkill',
+    ])
   })
 
-  for (const email of ['nova', 'nova@', '@spacefarers.example', 'nova kepler@spacefarers.example', 'nova@spacefarers']) {
+  for (const email of [
+    'nova',
+    'nova@',
+    '@spacefarers.example',
+    'nova kepler@spacefarers.example',
+    'nova@spacefarers',
+  ]) {
     it(`rejects the email address '${email}'`, () => {
       assert.deepEqual(validateCandidate({ email }), [{ target: 'email', message: 'Enter a valid email address.' }])
     })
@@ -118,9 +139,18 @@ describe('enhanceCandidate', () => {
   })
 
   it('reports which bonuses were granted', () => {
-    assert.deepEqual(enhanceCandidate({ stardustCollection: 0, wormholeNavigationSkill: 1 }), { starterStardust: 100, skillRaised: false })
-    assert.deepEqual(enhanceCandidate({ stardustCollection: 1000, wormholeNavigationSkill: 4 }), { starterStardust: 100, skillRaised: true })
-    assert.deepEqual(enhanceCandidate({ stardustCollection: 1000, wormholeNavigationSkill: 10 }), { starterStardust: 100, skillRaised: false })
+    assert.deepEqual(enhanceCandidate({ stardustCollection: 0, wormholeNavigationSkill: 1 }), {
+      starterStardust: 100,
+      skillRaised: false,
+    })
+    assert.deepEqual(enhanceCandidate({ stardustCollection: 1000, wormholeNavigationSkill: 4 }), {
+      starterStardust: 100,
+      skillRaised: true,
+    })
+    assert.deepEqual(enhanceCandidate({ stardustCollection: 1000, wormholeNavigationSkill: 10 }), {
+      starterStardust: 100,
+      skillRaised: false,
+    })
   })
 
   it('never raises the skill above 10', () => {
@@ -130,7 +160,10 @@ describe('enhanceCandidate', () => {
 
 describe('describeBonuses', () => {
   it('mentions the starter pack', () => {
-    assert.equal(describeBonuses({ starterStardust: 100, skillRaised: false }), 'A 100-unit stardust starter pack was added to the collection.')
+    assert.equal(
+      describeBonuses({ starterStardust: 100, skillRaised: false }),
+      'A 100-unit stardust starter pack was added to the collection.',
+    )
   })
 
   it('mentions the skill bonus as well', () => {
@@ -141,11 +174,17 @@ describe('describeBonuses', () => {
   })
 
   it('mentions the size of a starter pack that was cut short by the maximum', () => {
-    assert.equal(describeBonuses({ starterStardust: 50, skillRaised: false }), 'A 50-unit stardust starter pack was added to the collection.')
+    assert.equal(
+      describeBonuses({ starterStardust: 50, skillRaised: false }),
+      'A 50-unit stardust starter pack was added to the collection.',
+    )
   })
 
   it('mentions only the skill bonus when the collection was already full', () => {
-    assert.equal(describeBonuses({ starterStardust: 0, skillRaised: true }), 'The wormhole navigation skill was raised by one level.')
+    assert.equal(
+      describeBonuses({ starterStardust: 0, skillRaised: true }),
+      'The wormhole navigation skill was raised by one level.',
+    )
   })
 
   it('says nothing when no bonus was granted', () => {

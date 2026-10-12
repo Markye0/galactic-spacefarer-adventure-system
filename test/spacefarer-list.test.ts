@@ -56,7 +56,10 @@ describe('spacefarer list', () => {
   describe('sorting', () => {
     it('sorts by stardust collection in descending order', async () => {
       const amounts = (await list('$orderby=stardustCollection desc', 'alice')).map(s => s.stardustCollection)
-      assert.deepEqual(amounts, [...amounts].sort((a, b) => b - a))
+      assert.deepEqual(
+        amounts,
+        [...amounts].sort((a, b) => b - a),
+      )
       assert.equal(amounts[0], Math.max(...amounts))
     })
 
@@ -83,12 +86,18 @@ describe('spacefarer list', () => {
 
     it('searches by name', async () => {
       const found = await list('$search=kepler', 'alice')
-      assert.deepEqual(found.map(s => s.name), ['Nova Kepler'])
+      assert.deepEqual(
+        found.map(s => s.name),
+        ['Nova Kepler'],
+      )
     })
 
     it('searches by email', async () => {
       const found = await list('$search=orion.vega@', 'alice')
-      assert.deepEqual(found.map(s => s.name), ['Orion Vega'])
+      assert.deepEqual(
+        found.map(s => s.name),
+        ['Orion Vega'],
+      )
     })
 
     it('does not find spacefarers of another planet', async () => {

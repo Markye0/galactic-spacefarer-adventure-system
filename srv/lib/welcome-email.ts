@@ -10,7 +10,13 @@ export interface NewSpacefarer {
   starterStardust: number
 }
 
-export function buildWelcomeEmail({ name, email, stardustCollection, wormholeNavigationSkill, starterStardust }: NewSpacefarer): Mail {
+export function buildWelcomeEmail({
+  name,
+  email,
+  stardustCollection,
+  wormholeNavigationSkill,
+  starterStardust,
+}: NewSpacefarer): Mail {
   const starterPack = starterStardust > 0 ? ` (including a ${starterStardust}-unit starter pack)` : ''
 
   return {

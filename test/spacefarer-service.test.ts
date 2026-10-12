@@ -141,7 +141,10 @@ describe('SpacefarerService', () => {
     })
 
     it('cannot create a spacefarer on Planet Y using a nested planet reference', async () => {
-      const response = await create(recruit('X', { originPlanet_code: undefined, originPlanet: { code: 'Y' } }), 'xavier')
+      const response = await create(
+        recruit('X', { originPlanet_code: undefined, originPlanet: { code: 'Y' } }),
+        'xavier',
+      )
       assert.equal(response.status, 403)
     })
 
@@ -312,7 +315,10 @@ describe('SpacefarerService', () => {
     }
 
     it('still expands master data from a spacefarer', async () => {
-      const response = await GET(`/Spacefarers(${PLANET_X_SPACEFARER})?$expand=department,position,originPlanet,spacesuitColor`, as('xena'))
+      const response = await GET(
+        `/Spacefarers(${PLANET_X_SPACEFARER})?$expand=department,position,originPlanet,spacesuitColor`,
+        as('xena'),
+      )
       assert.equal(response.status, 200)
       assert.equal(response.data.department.name, 'Wormhole Navigation')
       assert.equal(response.data.originPlanet.name, 'Planet X')
@@ -358,10 +364,18 @@ describe('SpacefarerService', () => {
     describe('to the translations of a code list', () => {
       const translate = () =>
         cds.db.run(
-          INSERT.into('sap.galaxy.spacefarers.SpacesuitColors.texts').entries({ locale: 'de', code: 'SOLAR_ORANGE', name: 'Sonnenorange' }),
+          INSERT.into('sap.galaxy.spacefarers.SpacesuitColors.texts').entries({
+            locale: 'de',
+            code: 'SOLAR_ORANGE',
+            name: 'Sonnenorange',
+          }),
         )
 
-      for (const path of ['spacesuitColor/texts', 'spacesuitColor/texts/$count', "spacesuitColor/texts(locale='de',code='SOLAR_ORANGE')"]) {
+      for (const path of [
+        'spacesuitColor/texts',
+        'spacesuitColor/texts/$count',
+        "spacesuitColor/texts(locale='de',code='SOLAR_ORANGE')",
+      ]) {
         it(`does not reveal ${path} of a Planet Y spacefarer`, async () => {
           await translate()
           for (const username of ['nobody', 'xena']) {

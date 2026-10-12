@@ -45,28 +45,45 @@ describe('spacefarer event handlers', () => {
     it('rejects negative stardust', async () => {
       const response = await create(candidate({ stardustCollection: -1 }), 'alice')
       assert.equal(response.status, 400)
-      assert.deepEqual(errorsOf(response).map(({ target, message }) => ({ target, message })), [
-        { target: 'stardustCollection', message: 'Stardust collection must be a whole number between 0 and 1,000,000,000.' },
-      ])
+      assert.deepEqual(
+        errorsOf(response).map(({ target, message }) => ({ target, message })),
+        [
+          {
+            target: 'stardustCollection',
+            message: 'Stardust collection must be a whole number between 0 and 1,000,000,000.',
+          },
+        ],
+      )
     })
 
     it('rejects a wormhole navigation skill above 10', async () => {
       const response = await create(candidate({ wormholeNavigationSkill: 11 }), 'alice')
       assert.equal(response.status, 400)
-      assert.deepEqual(errorsOf(response).map(error => error.target), ['wormholeNavigationSkill'])
+      assert.deepEqual(
+        errorsOf(response).map(error => error.target),
+        ['wormholeNavigationSkill'],
+      )
     })
 
     it('rejects an invalid email address', async () => {
       const response = await create(candidate({ email: 'ada.starling' }), 'alice')
       assert.equal(response.status, 400)
-      assert.deepEqual(errorsOf(response).map(error => error.target), ['email'])
+      assert.deepEqual(
+        errorsOf(response).map(error => error.target),
+        ['email'],
+      )
     })
 
     it('reports every invalid field at once', async () => {
       const invalid = candidate({ email: 'ada', stardustCollection: -5, wormholeNavigationSkill: 0 })
       const response = await create(invalid, 'alice')
       assert.equal(response.status, 400)
-      assert.deepEqual(errorsOf(response).map(error => error.target).sort(), ['email', 'stardustCollection', 'wormholeNavigationSkill'])
+      assert.deepEqual(
+        errorsOf(response)
+          .map(error => error.target)
+          .sort(),
+        ['email', 'stardustCollection', 'wormholeNavigationSkill'],
+      )
     })
 
     it('does not store an invalid candidate', async () => {
@@ -108,7 +125,10 @@ describe('spacefarer event handlers', () => {
     it('rejects invalid values', async () => {
       const response = await update(EXISTING_SPACEFARER, { stardustCollection: -1 }, 'alice')
       assert.equal(response.status, 400)
-      assert.deepEqual(errorsOf(response).map(error => error.target), ['stardustCollection'])
+      assert.deepEqual(
+        errorsOf(response).map(error => error.target),
+        ['stardustCollection'],
+      )
     })
 
     it('rejects clearing the wormhole navigation skill', async () => {

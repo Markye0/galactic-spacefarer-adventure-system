@@ -145,7 +145,10 @@ describe('initial data', () => {
     for (const [foreignKey, [entity, key]] of Object.entries(references) as [keyof SpacefarerRow, [string, string]][]) {
       const known = new Set((await read(entity)).map(row => row[key]))
       for (const spacefarer of spacefarers) {
-        assert.ok(known.has(spacefarer[foreignKey]), `${spacefarer.name}: unknown ${foreignKey} '${spacefarer[foreignKey]}'`)
+        assert.ok(
+          known.has(spacefarer[foreignKey]),
+          `${spacefarer.name}: unknown ${foreignKey} '${spacefarer[foreignKey]}'`,
+        )
       }
     }
   })
@@ -161,7 +164,10 @@ describe('initial data', () => {
   it('keeps stardust non-negative and wormhole skill between 1 and 10', () => {
     for (const { name, stardustCollection, wormholeNavigationSkill } of spacefarers) {
       assert.ok(stardustCollection >= 0, `${name}: stardust ${stardustCollection}`)
-      assert.ok(wormholeNavigationSkill >= 1 && wormholeNavigationSkill <= 10, `${name}: skill ${wormholeNavigationSkill}`)
+      assert.ok(
+        wormholeNavigationSkill >= 1 && wormholeNavigationSkill <= 10,
+        `${name}: skill ${wormholeNavigationSkill}`,
+      )
     }
   })
 })
