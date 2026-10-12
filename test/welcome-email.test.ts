@@ -37,7 +37,12 @@ describe('buildWelcomeEmail', () => {
   })
 
   describe('when the starter pack was limited by the maximum collection', () => {
-    const full = { name: 'Ada Starling', email: 'ada.starling@spacefarers.example', stardustCollection: 1_000_000_000, wormholeNavigationSkill: 4 }
+    const full = {
+      name: 'Ada Starling',
+      email: 'ada.starling@spacefarers.example',
+      stardustCollection: 1_000_000_000,
+      wormholeNavigationSkill: 4,
+    }
 
     it('states the size of the pack that was granted', () => {
       const { text } = buildWelcomeEmail({ ...full, starterStardust: 50 })

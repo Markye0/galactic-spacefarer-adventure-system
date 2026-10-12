@@ -5,9 +5,7 @@ export interface OriginPlanetInput {
 }
 
 export type OriginPlanet =
-  | { given: false }
-  | { given: true; planet: string }
-  | { given: true; problem: 'missing' | 'ambiguous' }
+  { given: false } | { given: true; planet: string } | { given: true; problem: 'missing' | 'ambiguous' }
 
 /**
  * Reads the origin planet from whichever form the request uses. A form that is present has to

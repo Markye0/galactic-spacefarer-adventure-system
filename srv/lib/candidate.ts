@@ -19,7 +19,11 @@ export interface ValidationError {
 }
 
 /** Checks the fields that are present; `undefined` means the field was not provided. */
-export function validateCandidate({ email, stardustCollection, wormholeNavigationSkill }: CandidateData): ValidationError[] {
+export function validateCandidate({
+  email,
+  stardustCollection,
+  wormholeNavigationSkill,
+}: CandidateData): ValidationError[] {
   const errors: ValidationError[] = []
 
   if (typeof email === 'string' && !EMAIL.test(email)) {

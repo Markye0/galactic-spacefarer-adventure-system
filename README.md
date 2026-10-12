@@ -7,7 +7,8 @@ full stack technical assessment.
 
 ## Getting started
 
-Requires Node.js 22 or later.
+Requires Node.js 22 or later; the project is developed with the version in
+[`.nvmrc`](.nvmrc).
 
 Install the dependencies:
 
@@ -52,6 +53,7 @@ the production profile.
 | `npm test`          | run all tests                           |
 | `npm run typecheck` | generate the model types and type-check |
 | `npm run lint`      | lint the TypeScript sources             |
+| `npm run format`    | format the TypeScript and CDS sources   |
 
 ## Roles and permissions
 
@@ -182,6 +184,9 @@ twice. The outbox is not part of this solution, to keep it small.
 - service tests over HTTP for authentication, roles, planet isolation,
   the draft workflow, the handlers and the OData query options,
 - annotation tests for the list report and object page.
+
+A GitHub Actions workflow runs the linter, the type check, the formatting
+check and the tests on every push, with Node.js 22 and 26.
 
 ## Project structure
 

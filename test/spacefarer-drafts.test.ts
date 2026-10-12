@@ -122,7 +122,11 @@ describe('spacefarer drafts', () => {
 
   describe('editing', () => {
     it('changes stardust collection and spacesuit color on save', async () => {
-      const saved = await update(PLANET_X_SPACEFARER, { stardustCollection: 1200, spacesuitColor_code: 'AURORA_GREEN' }, 'xavier')
+      const saved = await update(
+        PLANET_X_SPACEFARER,
+        { stardustCollection: 1200, spacesuitColor_code: 'AURORA_GREEN' },
+        'xavier',
+      )
 
       assert.equal(saved.status, 200)
       const { data } = await activeSpacefarer(PLANET_X_SPACEFARER)

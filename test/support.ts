@@ -19,7 +19,8 @@ export function spacefarerDrafts({ POST, PATCH, DELETE }: Test) {
   const editDraft = (id: string, username: string) =>
     POST(`${active(id)}/SpacefarerService.draftEdit`, { PreserveChanges: true }, as(username))
   const change = (id: string, changes: Data, username: string) => PATCH(draft(id), changes, as(username))
-  const activate = (id: string, username: string) => POST(`${draft(id)}/SpacefarerService.draftActivate`, {}, as(username))
+  const activate = (id: string, username: string) =>
+    POST(`${draft(id)}/SpacefarerService.draftActivate`, {}, as(username))
   const discard = (id: string, username: string) => DELETE(draft(id), as(username))
 
   /** New draft, then save. */

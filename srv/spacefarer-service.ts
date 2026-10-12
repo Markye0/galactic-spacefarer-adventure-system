@@ -58,7 +58,10 @@ export default class SpacefarerService extends cds.ApplicationService {
     if (!origin.given) return
 
     if ('problem' in origin) {
-      const message = origin.problem === 'missing' ? 'An origin planet is required.' : 'The origin planet is given twice, with different values.'
+      const message =
+        origin.problem === 'missing'
+          ? 'An origin planet is required.'
+          : 'The origin planet is given twice, with different values.'
       return req.reject(400, message, 'originPlanet_code')
     }
 

@@ -55,7 +55,10 @@ describe('planet attribute delivered as a list', () => {
   describe('with several planets', () => {
     it('creates spacefarers on each of them', async () => {
       assert.equal((await create(candidate({ originPlanet_code: 'X' }), 'xyla')).status, 201)
-      assert.equal((await create(candidate({ originPlanet_code: 'Y', email: 'ada.two@spacefarers.example' }), 'xyla')).status, 201)
+      assert.equal(
+        (await create(candidate({ originPlanet_code: 'Y', email: 'ada.two@spacefarers.example' }), 'xyla')).status,
+        201,
+      )
     })
 
     it('lets the user choose the planet in the UI', async () => {
